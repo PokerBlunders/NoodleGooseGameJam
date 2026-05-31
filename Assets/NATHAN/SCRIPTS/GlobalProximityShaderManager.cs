@@ -8,7 +8,7 @@ public class GlobalProximityShaderManager : MonoBehaviour
 
     [Header("Settings")]
     public float updateInterval = 0.1f;
-    public bool refreshCacheEveryFrame = false; // Only true if you add/remove objects at runtime
+    public float currentEndDistance = 3.0f;   // Dynamic value – can be changed by microphone script
 
     private List<Renderer> cachedRenderers = new List<Renderer>();
     private float timer;
@@ -30,8 +30,6 @@ public class GlobalProximityShaderManager : MonoBehaviour
     void RefreshCache()
     {
         cachedRenderers.Clear();
-
-        // New Unity API: FindObjectsByType with no sorting for better performance
         Renderer[] all = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
 
         foreach (Renderer rend in all)
@@ -50,23 +48,33 @@ public class GlobalProximityShaderManager : MonoBehaviour
     {
         if (player == null) return;
 
-        if (refreshCacheEveryFrame)
-            RefreshCache();
-
         timer += Time.deltaTime;
         if (timer < updateInterval) return;
         timer = 0f;
 
         Vector3 playerPos = player.position;
+
         foreach (Renderer rend in cachedRenderers)
         {
             if (rend == null) continue;
+
             rend.GetPropertyBlock(propBlock);
             propBlock.SetVector("_PlayerPosition", playerPos);
+            propBlock.SetFloat("_EndDistance", currentEndDistance);
             rend.SetPropertyBlock(propBlock);
         }
     }
 
     // Call this if you spawn/destroy objects with the shader at runtime
     public void InvalidateCache() => RefreshCache();
+
+    // Optional: visualise current EndDistance in Scene view
+    void OnDrawGizmosSelected()
+    {
+        if (player != null)
+        {
+            Gizmos.color = new Color(1, 1, 1, 0.3f);
+            Gizmos.DrawWireSphere(player.position, currentEndDistance);
+        }
+    }
 }
