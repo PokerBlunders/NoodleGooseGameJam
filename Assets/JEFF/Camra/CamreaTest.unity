@@ -130,8 +130,11 @@ GameObject:
   - component: {fileID: 59976203}
   - component: {fileID: 59976206}
   - component: {fileID: 59976205}
+  - component: {fileID: 59976204}
   - component: {fileID: 59976207}
   - component: {fileID: 59976208}
+  - component: {fileID: 59976210}
+  - component: {fileID: 59976209}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -156,6 +159,23 @@ Transform:
   - {fileID: 662650967}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &59976204
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 59976202}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22c0f7f507f092a42b0074844b2589d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FirstPersonMovement
+  walkSpeed: 5
+  sprintSpeed: 8
+  jumpHeight: 1.2
+  gravity: -20
+  mouseSensitivity: 2
 --- !u!143 &59976205
 CharacterController:
   m_ObjectHideFlags: 0
@@ -240,9 +260,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 59976202}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4e83d7f206455214caa370c7294e852f, type: 3}
+  m_Script: {fileID: 11500000, guid: f5fd981de27f5f646bd5928c0fcff9e1, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerControllerC
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   walkSpeed: 5
   sprintSpeed: 8
   acceleration: 10
@@ -252,13 +272,44 @@ MonoBehaviour:
   mouseSensitivity: 2
   maxLookAngle: 80
   playerCamera: {fileID: 662650966}
-  zoomSpeed: 30
-  minFOV: 10
-  maxFOV: 90
-  maxTeleportDistance: 200
-  teleportMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
+--- !u!114 &59976209
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 59976202}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f15e98959cd98624aa55eaa857ae8fd1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SoundVisualizer
+  playerState: {fileID: 0}
+  soundRingPrefab: {fileID: 0}
+  minRingScale: 0.5
+  maxRingScale: 8
+--- !u!114 &59976210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 59976202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fff5a904181d2543b2022ad44fcd125, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStealthState
+  movementThreshold: 0.5
+  soundRadius: 8
+  invisibilityTransitionTime: 0.3
+  playerRenderers:
+  - {fileID: 100772915}
+  invisibleAlpha: 0.15
+  fadeSpeed: 5
+  isMoving: 0
+  isFullyInvisible: 0
+  currentSoundRadius: 0
 --- !u!1 &100772912
 GameObject:
   m_ObjectHideFlags: 0
