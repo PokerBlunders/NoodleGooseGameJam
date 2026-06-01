@@ -8,6 +8,7 @@ TagManager:
   - Ground
   - Wood
   - RedWall
+  - BlueWall
   layers:
   - Default
   - TransparentFX
