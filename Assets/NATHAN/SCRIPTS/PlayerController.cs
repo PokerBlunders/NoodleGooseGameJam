@@ -3,22 +3,27 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movement Settings")]
-    [SerializeField] private float walkSpeed = 5f;
-    [SerializeField] private float sprintSpeed = 8f;
-    [SerializeField] private float acceleration = 10f;
-    [SerializeField] private float deceleration = 10f;
-    [SerializeField] private float gravity = -9.81f;
-    [SerializeField] private float jumpHeight = 1.5f;
+    [Header("Movement Speeds")]
+    [SerializeField] private float walkSpeed = 6f;
+    [SerializeField] private float sprintSpeed = 10f;
+
+    [Header("Acceleration")]
+    [SerializeField] private float groundAcceleration = 5f;   // slower = more sluggish
+    [SerializeField] private float groundDeceleration = 8f;   // slower to stop
+    [SerializeField] private float airControl = 0.3f;        // reduced steering in air
+    [SerializeField] private float sprintAccelMultiplier = 1.2f; // extra oomph when sprinting
+
+    [Header("Jump & Gravity")]
+    [SerializeField] private float gravity = -18f;            // heavier gravity for cyclops
+    [SerializeField] private float jumpHeight = 1.2f;         // lower jump
 
     [Header("Mouse Look")]
-    [SerializeField] private float mouseSensitivity = 2f;
+    [SerializeField] private float mouseSensitivity = 1.5f;   // slower turning
     [SerializeField] private float maxLookAngle = 80f;
 
     [Header("References")]
     [SerializeField] private Camera playerCamera;
 
-    // Private variables
     private CharacterController controller;
     private Vector3 moveDirection;
     private float verticalRotation = 0f;
@@ -27,10 +32,9 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private float verticalVelocity;
 
-    private void Start()
+    void Start()
     {
         controller = GetComponent<CharacterController>();
-
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>();
 
@@ -38,7 +42,7 @@ public class PlayerController : MonoBehaviour
         Cursor.visible = false;
     }
 
-    private void Update()
+    void Update()
     {
         HandleMouseLook();
         HandleMovementInput();
@@ -46,11 +50,9 @@ public class PlayerController : MonoBehaviour
         ApplyMovement();
     }
 
-    private void HandleMouseLook()
+    void HandleMouseLook()
     {
-        // If sun controller is active (right mouse held), don't move camera
-        if (SunController.IsControllingSun)
-            return;
+        if (SunController.IsControllingSun) return;
 
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
@@ -62,7 +64,7 @@ public class PlayerController : MonoBehaviour
         playerCamera.transform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
     }
 
-    private void HandleMovementInput()
+    void HandleMovementInput()
     {
         float horizontal = Input.GetAxisRaw("Horizontal");
         float vertical = Input.GetAxisRaw("Vertical");
@@ -71,15 +73,23 @@ public class PlayerController : MonoBehaviour
         Vector3 worldDirection = transform.right * inputDirection.x + transform.forward * inputDirection.z;
 
         bool isSprinting = Input.GetKey(KeyCode.LeftShift) && inputDirection.magnitude > 0;
-        targetSpeed = isSprinting ? sprintSpeed : walkSpeed;
 
-        float accelRate = (inputDirection.magnitude > 0) ? acceleration : deceleration;
-        currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed * inputDirection.magnitude, accelRate * Time.deltaTime);
+        // Target speed based on walk/sprint
+        float baseTargetSpeed = isSprinting ? sprintSpeed : walkSpeed;
+        targetSpeed = baseTargetSpeed * inputDirection.magnitude;
+
+        // Different acceleration for grounded vs air
+        float currentAccel = isGrounded ? groundAcceleration : groundAcceleration * airControl;
+        if (isSprinting && isGrounded)
+            currentAccel *= sprintAccelMultiplier;
+
+        float accelRate = (inputDirection.magnitude > 0) ? currentAccel : groundDeceleration;
+        currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, accelRate * Time.deltaTime);
 
         moveDirection = worldDirection * currentSpeed;
     }
 
-    private void ApplyGravityAndJump()
+    void ApplyGravityAndJump()
     {
         isGrounded = controller.isGrounded;
 
@@ -92,13 +102,13 @@ public class PlayerController : MonoBehaviour
         verticalVelocity += gravity * Time.deltaTime;
     }
 
-    private void ApplyMovement()
+    void ApplyMovement()
     {
         Vector3 finalMovement = moveDirection + Vector3.up * verticalVelocity;
         controller.Move(finalMovement * Time.deltaTime);
     }
 
-    private void OnApplicationFocus(bool hasFocus)
+    void OnApplicationFocus(bool hasFocus)
     {
         if (!hasFocus)
         {

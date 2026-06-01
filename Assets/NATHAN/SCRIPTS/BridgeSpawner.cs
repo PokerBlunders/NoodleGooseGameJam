@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
 public class BridgeSpawner : MonoBehaviour
 {
@@ -23,11 +24,15 @@ public class BridgeSpawner : MonoBehaviour
     public string outlineChildName = "Outline";
 
     [Header("Shadow Obstruction")]
-    public LayerMask obstructionMask = -1;   // objects that block sunlight or shadow
-    public float sunCheckDistance = 500f;    // far distance to check for sunlight obstruction
+    public LayerMask obstructionMask = -1;
+    public float sunCheckDistance = 500f;
     public bool showObstructionDebug = true;
 
+    [Header("Bridge Limit")]
+    public int maxBridges = 3;
+
     private CharacterController controller;
+    private List<GameObject> spawnedBridges = new List<GameObject>();
 
     void Start()
     {
@@ -52,35 +57,34 @@ public class BridgeSpawner : MonoBehaviour
 
         Vector3 headTop = transform.position + Vector3.up * controller.height;
         Vector3 bridgeStart = transform.position + startOffset;
-        Vector3 rayDir = sunLight.forward;           // direction from sun towards ground
+        Vector3 rayDir = sunLight.forward;
 
-        // --- CHECK 1: Is sunlight reaching the player's head? (raycast far behind player) ---
-        Vector3 sunDirection = -rayDir; // from head towards the sun
+        // Check 1: Sunlight reaching player?
+        Vector3 sunDirection = -rayDir;
         if (Physics.Raycast(headTop, sunDirection, out RaycastHit sunBlock, sunCheckDistance, obstructionMask))
         {
             if (showObstructionDebug)
             {
-                Debug.Log($"Sunlight blocked by {sunBlock.collider.name} at distance {sunBlock.distance} – cannot place bridge.");
+                Debug.Log($"Sunlight blocked by {sunBlock.collider.name} – cannot place bridge.");
                 Debug.DrawLine(headTop, sunBlock.point, Color.magenta, 1f);
             }
-            return; // in shadow, no bridge
+            return;
         }
 
-        // --- CHECK 2: Does the shadow reach the ground without being blocked? ---
+        // Check 2: Shadow reaches ground?
         if (Physics.Raycast(headTop, rayDir, out RaycastHit groundHit, maxDistance, groundMask))
         {
             Vector3 shadowTip = groundHit.point;
             float length = Vector3.Distance(bridgeStart, shadowTip);
             if (length < 0.5f) return;
 
-            // Ray from head to shadow tip – check for obstructions (walls, etc.)
             Vector3 shadowDirection = (shadowTip - headTop).normalized;
             float shadowDistance = Vector3.Distance(headTop, shadowTip);
             if (Physics.Raycast(headTop, shadowDirection, out RaycastHit obstruction, shadowDistance, obstructionMask))
             {
                 if (showObstructionDebug)
                 {
-                    Debug.Log($"Shadow blocked by {obstruction.collider.name} before reaching ground.");
+                    Debug.Log($"Shadow blocked by {obstruction.collider.name}");
                     Debug.DrawLine(headTop, obstruction.point, Color.red, 1f);
                 }
                 return;
@@ -95,13 +99,23 @@ public class BridgeSpawner : MonoBehaviour
     {
         if (bridgePrefab == null) return;
 
+        // Enforce bridge limit
+        while (spawnedBridges.Count >= maxBridges)
+        {
+            GameObject oldest = spawnedBridges[0];
+            spawnedBridges.RemoveAt(0);
+            Destroy(oldest);
+        }
+
         GameObject bridge = Instantiate(bridgePrefab);
         bridge.name = "ShadowBridge";
+        spawnedBridges.Add(bridge);
 
         Vector3 center = (start + end) / 2f;
         float length = Vector3.Distance(start, end);
         Vector3 direction = (end - start).normalized;
 
+        // Base rotation: align forward (Z) with shadow direction
         Quaternion rotation = Quaternion.LookRotation(direction);
         bridge.transform.position = center;
         bridge.transform.rotation = rotation;

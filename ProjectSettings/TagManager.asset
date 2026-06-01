@@ -7,8 +7,8 @@ TagManager:
   - Platform
   - Ground
   - Wood
-  - RedWall
-  - BlueWall
+  - RedObject
+  - BlueObject
   layers:
   - Default
   - TransparentFX
@@ -22,8 +22,8 @@ TagManager:
   - Bridge
   - Obstruction
   - 
-  - 
-  - 
+  - RedObject
+  - BlueObject
   - 
   - 
   - 
