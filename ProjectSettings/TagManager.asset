@@ -7,6 +7,7 @@ TagManager:
   - Platform
   - Ground
   - Wood
+  - RedWall
   layers:
   - Default
   - TransparentFX
