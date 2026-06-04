@@ -2396,7 +2396,7 @@ Transform:
   m_GameObject: {fileID: 594590353}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: 0.6252199, w: 0.78044873}
-  m_LocalPosition: {x: 3.9400005, y: -1.83, z: 20.29}
+  m_LocalPosition: {x: 3.7, y: -1.88, z: 20.29}
   m_LocalScale: {x: 1.9245964, y: 8.5870285, z: 1.9245964}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7490,18 +7490,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SoundPlayerController
   walkSpeed: 6
-  sprintSpeed: 10
-  groundAcceleration: 5
-  groundDeceleration: 8
-  airControl: 0.3
-  sprintAccelMultiplier: 1.2
-  gravity: -18
-  jumpHeight: 1.2
-  mouseSensitivity: 1.5
-  maxLookAngle: 80
+  turnAngle: 45
   voiceMoveDuration: 0.5
-  voiceTurnSpeed: 180
-  playerCamera: {fileID: 910013831}
+  jumpHeight: 1.5
+  gravity: -18
 --- !u!114 &1247205307
 MonoBehaviour:
   m_ObjectHideFlags: 0
