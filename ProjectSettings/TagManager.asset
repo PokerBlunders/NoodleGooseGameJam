@@ -9,6 +9,7 @@ TagManager:
   - Wood
   - RedObject
   - BlueObject
+  - Obstacle
   layers:
   - Default
   - TransparentFX

@@ -4,19 +4,27 @@ using UnityEngine.Rendering.Universal;
 
 public class ViewSwapper : MonoBehaviour
 {
+    public static ViewSwapper Instance { get; private set; }
+
     public enum ViewMode { Normal, Red, Blue }
     public ViewMode currentView = ViewMode.Normal;
 
     [Header("Post Process Volume")]
-    public Volume postProcessVolume;          // Drag your Global Volume here
+    public Volume postProcessVolume;
     private ColorAdjustments colorAdjustments;
 
     [Header("Tint Colors")]
-    public Color redFilter = new Color(1f, 0.2f, 0.2f);  // subtle red tint
-    public Color blueFilter = new Color(0.2f, 0.2f, 1f); // subtle blue tint
+    public Color redFilter = new Color(1f, 0.2f, 0.2f);
+    public Color blueFilter = new Color(0.2f, 0.2f, 1f);
 
     [Header("Input")]
-    public KeyCode swapKey = KeyCode.Q;
+    public KeyCode swapKey = KeyCode.Q;   // keyboard fallback
+
+    void Awake()
+    {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
 
     void Start()
     {
@@ -34,16 +42,20 @@ public class ViewSwapper : MonoBehaviour
 
     void Update()
     {
+        // Keyboard fallback (still works if no voice)
         if (Input.GetKeyDown(swapKey))
-        {
-            currentView = (ViewMode)(((int)currentView + 1) % 3);
-            ApplyView(currentView);
-        }
+            ToggleView();
+    }
+
+    // Called by voice command ("swap") or by other scripts
+    public void ToggleView()
+    {
+        currentView = (ViewMode)(((int)currentView + 1) % 3);
+        ApplyView(currentView);
     }
 
     void ApplyView(ViewMode mode)
     {
-        // 1. Update the global tint using Color Adjustments
         if (colorAdjustments != null)
         {
             switch (mode)
@@ -60,7 +72,7 @@ public class ViewSwapper : MonoBehaviour
             }
         }
 
-        // 2. Hide/show objects based on tags (as before)
+        // Hide/show objects based on tags
         GameObject[] redObjects = GameObject.FindGameObjectsWithTag("RedObject");
         GameObject[] blueObjects = GameObject.FindGameObjectsWithTag("BlueObject");
 
