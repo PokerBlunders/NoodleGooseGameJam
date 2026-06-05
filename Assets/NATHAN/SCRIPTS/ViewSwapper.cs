@@ -6,8 +6,8 @@ public class ViewSwapper : MonoBehaviour
 {
     public static ViewSwapper Instance { get; private set; }
 
-    public enum ViewMode { Normal, Red, Blue }
-    public ViewMode currentView = ViewMode.Normal;
+    public enum ViewMode { Blue, Red }
+    private ViewMode currentView = ViewMode.Blue;
 
     [Header("Post Process Volume")]
     public Volume postProcessVolume;
@@ -18,7 +18,9 @@ public class ViewSwapper : MonoBehaviour
     public Color blueFilter = new Color(0.2f, 0.2f, 1f);
 
     [Header("Input")]
-    public KeyCode swapKey = KeyCode.Q;   // keyboard fallback
+    public KeyCode swapKey = KeyCode.Q;
+
+    public System.Action<ViewMode> OnViewChanged;
 
     void Awake()
     {
@@ -28,61 +30,67 @@ public class ViewSwapper : MonoBehaviour
 
     void Start()
     {
+        // Find the volume if not assigned
         if (postProcessVolume == null)
-            postProcessVolume = FindObjectOfType<Volume>();
+            postProcessVolume = FindFirstObjectByType<Volume>();
 
-        if (postProcessVolume != null)
-            postProcessVolume.profile.TryGet(out colorAdjustments);
-
-        if (colorAdjustments == null)
-            Debug.LogError("No Color Adjustments override found in the Volume!");
+        if (postProcessVolume != null && postProcessVolume.profile.TryGet(out colorAdjustments))
+        {
+            Debug.Log("ColorAdjustments found – tint will work.");
+        }
+        else
+        {
+            Debug.LogError("ColorAdjustments not found! Please assign a Volume with Color Adjustments override.");
+        }
 
         ApplyView(currentView);
     }
 
     void Update()
     {
-        // Keyboard fallback (still works if no voice)
         if (Input.GetKeyDown(swapKey))
             ToggleView();
     }
 
-    // Called by voice command ("swap") or by other scripts
     public void ToggleView()
     {
-        currentView = (ViewMode)(((int)currentView + 1) % 3);
+        Debug.Log("ToggleView called, current view = " + currentView);
+        currentView = (currentView == ViewMode.Blue) ? ViewMode.Red : ViewMode.Blue;
         ApplyView(currentView);
     }
 
     void ApplyView(ViewMode mode)
     {
+        Debug.Log("ApplyView: " + mode);
+
+        // Update colour filter
         if (colorAdjustments != null)
         {
-            switch (mode)
-            {
-                case ViewMode.Red:
-                    colorAdjustments.colorFilter.Override(redFilter);
-                    break;
-                case ViewMode.Blue:
-                    colorAdjustments.colorFilter.Override(blueFilter);
-                    break;
-                default:
-                    colorAdjustments.colorFilter.Override(Color.white);
-                    break;
-            }
+            if (mode == ViewMode.Blue)
+                colorAdjustments.colorFilter.Override(blueFilter);
+            else
+                colorAdjustments.colorFilter.Override(redFilter);
+            Debug.Log("Color filter set to " + (mode == ViewMode.Blue ? "Blue" : "Red"));
+        }
+        else
+        {
+            Debug.LogWarning("ColorAdjustments missing – tint unchanged.");
         }
 
         // Hide/show objects based on tags
         GameObject[] redObjects = GameObject.FindGameObjectsWithTag("RedObject");
         GameObject[] blueObjects = GameObject.FindGameObjectsWithTag("BlueObject");
 
-        bool showRed = (mode != ViewMode.Red);
-        bool showBlue = (mode != ViewMode.Blue);
+        bool showRed = (mode == ViewMode.Red);
+        bool showBlue = (mode == ViewMode.Blue);
 
         foreach (GameObject obj in redObjects)
             SetRenderersAndColliders(obj, showRed);
         foreach (GameObject obj in blueObjects)
             SetRenderersAndColliders(obj, showBlue);
+
+        // Notify listeners (for animation and blendshapes)
+        OnViewChanged?.Invoke(mode);
     }
 
     void SetRenderersAndColliders(GameObject obj, bool active)
