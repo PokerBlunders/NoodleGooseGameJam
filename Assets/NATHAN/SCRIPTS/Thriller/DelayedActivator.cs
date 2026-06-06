@@ -4,10 +4,15 @@ using System.Collections;
 public class DelayedActivator : MonoBehaviour
 {
     [Header("Target")]
-    public GameObject targetObject;          // the GameObject to activate
+    public GameObject targetObject;
 
-    [Header("Timing")]
-    public float delayBeforeShow = 2f;       // wait time before showing
+    [Header("Timing (seconds into music)")]
+    public float activateAtMusicTime = 2f;   // time in the music to activate
+
+    [Header("Music Source")]
+    public AudioSource musicSource;
+
+    private double musicStartDspTime = -1;
 
     void Start()
     {
@@ -18,15 +23,24 @@ public class DelayedActivator : MonoBehaviour
             return;
         }
 
-        // Start with the object hidden (optional)
-        // targetObject.SetActive(false);
+        if (musicSource == null)
+            musicSource = FindObjectOfType<AudioSource>();
 
-        StartCoroutine(ShowAfterDelay());
+        StartCoroutine(WaitForMusicThenActivate());
     }
 
-    IEnumerator ShowAfterDelay()
+    IEnumerator WaitForMusicThenActivate()
     {
-        yield return new WaitForSeconds(delayBeforeShow);
+        // Wait until music is playing and capture its start DSP time
+        while (musicSource == null || !musicSource.isPlaying)
+            yield return null;
+        musicStartDspTime = AudioSettings.dspTime - musicSource.time;
+
+        // Schedule activation at the given music time
+        double targetDsp = musicStartDspTime + activateAtMusicTime;
+        while (AudioSettings.dspTime < targetDsp)
+            yield return null;
+
         targetObject.SetActive(true);
     }
 }

@@ -1178,7 +1178,7 @@ AudioSource:
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 8300000, guid: 77b51471a2a953246994370fedf6d7b5, type: 3}
-  m_PlayOnAwake: 1
+  m_PlayOnAwake: 0
   m_Volume: 0.2
   m_Pitch: 1
   Loop: 0
@@ -1306,7 +1306,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DelayedActivator
   targetObject: {fileID: 782036483}
-  delayBeforeShow: 20.35
+  activateAtMusicTime: 20.45
+  musicSource: {fileID: 480365239}
 --- !u!1 &483801953
 GameObject:
   m_ObjectHideFlags: 0
@@ -2561,10 +2562,11 @@ MonoBehaviour:
   distanceB: -3.5
   heightB: 0.5
   smoothB: 0.2
-  targetBlendDelay: 10
+  targetBlendMusicTime: 7
   targetBlendDuration: 10
-  settingsBlendDelay: 7
+  settingsBlendMusicTime: 5
   settingsBlendDuration: 10
+  musicSource: {fileID: 480365239}
 --- !u!1 &1245863299
 GameObject:
   m_ObjectHideFlags: 0
@@ -3429,8 +3431,9 @@ MonoBehaviour:
   targetValue: 100
   materialTarget: {fileID: 1830277667}
   newMaterial: {fileID: 2100000, guid: 507d1001c9a6c2e40bb059e85700c680, type: 2}
-  materialChangeDelay: 20.35
+  materialChangeDelay: 20.45
   revertMaterialAfterSequence: 0
+  musicSource: {fileID: 480365239}
 --- !u!1 &1840496974
 GameObject:
   m_ObjectHideFlags: 0
@@ -3590,6 +3593,56 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 142475750}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1959709807
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1959709809}
+  - component: {fileID: 1959709808}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1959709808
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1959709807}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fedcaf95a1a82784fad23e7d035a5c81, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MusicSyncManager
+  musicSource: {fileID: 480365239}
+  characterAnimator: {fileID: 626347229}
+  startAnimationTrigger: Start
+  eventTimes: []
+  eventTriggers: []
+  initialDelay: 1
+--- !u!4 &1959709809
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1959709807}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 4.1875, y: -0, z: 10.61056}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1984665891
 GameObject:
@@ -3767,3 +3820,4 @@ SceneRoots:
   - {fileID: 612680276}
   - {fileID: 480365240}
   - {fileID: 231896578}
+  - {fileID: 1959709809}

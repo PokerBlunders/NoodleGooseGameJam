@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class AudioFadeOut : MonoBehaviour
 {
@@ -24,7 +25,7 @@ public class AudioFadeOut : MonoBehaviour
             StartCoroutine(FadeOut());
     }
 
-    System.Collections.IEnumerator FadeOut()
+    IEnumerator FadeOut()
     {
         isFading = true;
         float elapsed = 0f;
@@ -37,5 +38,7 @@ public class AudioFadeOut : MonoBehaviour
         }
 
         audioSource.volume = 0f;
+        // Optional: stop the audio source after fade to save resources
+        audioSource.Stop();
     }
 }

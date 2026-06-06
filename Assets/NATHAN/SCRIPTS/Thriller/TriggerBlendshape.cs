@@ -5,21 +5,26 @@ public class TriggerBlendshape : MonoBehaviour
 {
     public SkinnedMeshRenderer skinnedMesh;
     public string blendshapeName = "Smile";
-    public float delay = 2f;                // initial delay before blendshape activation
+    public float delay = 2f;                // seconds into music to start blendshape
     public float fadeInDuration = 1f;
     public float holdDuration = 0.5f;
     public float fadeOutDuration = 1f;
     public float targetValue = 100f;
 
     [Header("Material Change (Optional)")]
-    public Renderer materialTarget;          // object whose material to change
-    public Material newMaterial;             // material to apply after delay
-    public float materialChangeDelay = 20f;  // time to wait before switching material
-    public bool revertMaterialAfterSequence = false; // if true, revert to original after blendshape sequence ends
+    public Renderer materialTarget;
+    public Material newMaterial;
+    public float materialChangeDelay = 20f;  // seconds into music to change material
+    public bool revertMaterialAfterSequence = false;
+
+    [Header("Music Source")]
+    public AudioSource musicSource;
 
     private int blendshapeIndex = -1;
     private Material originalMaterial;
     private bool materialChanged = false;
+    private double musicStartDspTime = -1;
+    private bool musicStarted = false;
 
     void Start()
     {
@@ -41,22 +46,43 @@ public class TriggerBlendshape : MonoBehaviour
             return;
         }
 
-        // Store original material if needed
         if (materialTarget != null && newMaterial != null && revertMaterialAfterSequence)
             originalMaterial = materialTarget.material;
 
-        // Start blendshape sequence after its own delay
-        Invoke(nameof(StartSequence), delay);
+        if (musicSource == null)
+            musicSource = FindObjectOfType<AudioSource>();
 
-        // Start material change timer
-        if (materialTarget != null && newMaterial != null && materialChangeDelay > 0f)
-            Invoke(nameof(ChangeMaterial), materialChangeDelay);
+        StartCoroutine(WaitForMusicStartThenSchedule());
     }
 
-    void StartSequence()
+    IEnumerator WaitForMusicStartThenSchedule()
     {
-        StartCoroutine(FullBlendSequence());
+        // Wait until music is playing and capture its start DSP time
+        while (musicSource == null || !musicSource.isPlaying)
+            yield return null;
+        musicStartDspTime = AudioSettings.dspTime - musicSource.time;
+        musicStarted = true;
+
+        // Schedule blendshape sequence
+        if (delay > 0)
+            StartCoroutine(ExecuteAtMusicTime(delay, StartSequence));
+        else
+            StartSequence();
+
+        // Schedule material change
+        if (materialTarget != null && newMaterial != null && materialChangeDelay > 0)
+            StartCoroutine(ExecuteAtMusicTime(materialChangeDelay, ChangeMaterial));
     }
+
+    IEnumerator ExecuteAtMusicTime(float musicTime, System.Action action)
+    {
+        double targetDsp = musicStartDspTime + musicTime;
+        while (AudioSettings.dspTime < targetDsp)
+            yield return null;
+        action?.Invoke();
+    }
+
+    void StartSequence() => StartCoroutine(FullBlendSequence());
 
     void ChangeMaterial()
     {
@@ -98,7 +124,6 @@ public class TriggerBlendshape : MonoBehaviour
         }
         skinnedMesh.SetBlendShapeWeight(blendshapeIndex, 0f);
 
-        // Optionally revert material after the whole sequence
         if (revertMaterialAfterSequence && originalMaterial != null && materialTarget != null)
             materialTarget.material = originalMaterial;
     }
