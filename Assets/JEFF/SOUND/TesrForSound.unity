@@ -9383,6 +9383,7 @@ MonoBehaviour:
   redBlendshapeName: MoveLeft
   blendshapeTransitionDuration: 0.2
   obstacleTag: Obstacle
+  fuzzyThreshold: 1
 --- !u!54 &708102416
 Rigidbody:
   m_ObjectHideFlags: 0

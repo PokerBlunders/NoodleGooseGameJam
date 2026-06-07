@@ -44,7 +44,7 @@ public class MovementController : MonoBehaviour
     public SkinnedMeshRenderer characterMesh;
     public string blueBlendshapeName = "Blue";
     public string redBlendshapeName = "Red";
-    public float blendshapeTransitionDuration = 0.2f;   // smooth transition time
+    public float blendshapeTransitionDuration = 0.2f;
     private Coroutine blendshapeCoroutine = null;
 
     [Header("Obstacle")]
@@ -78,11 +78,12 @@ public class MovementController : MonoBehaviour
         targetX = (currentLane - 1) * laneDistance;
         transform.position = new Vector3(targetX, transform.position.y, transform.position.z);
 
-        keywordActions.Add("left", () => MoveLeft());
-        keywordActions.Add("right", () => MoveRight());
-        keywordActions.Add("jump", () => RequestJump());
-        keywordActions.Add("slide", () => RequestSlide());
-        keywordActions.Add("swap", () => TriggerSwap());
+        // Add main commands and common mispronunciation variants
+        AddCommandVariants("left", MoveLeft, "lef", "lft", "lept", "leff");
+        AddCommandVariants("right", MoveRight, "rite", "righ", "ryt", "reight");
+        AddCommandVariants("jump", RequestJump, "jmp", "jomp", "jup", "jamp");
+        AddCommandVariants("slide", RequestSlide, "slid", "slyde", "slie", "sligh");
+        AddCommandVariants("swap", TriggerSwap, "swop", "swp", "sap", "swapp");
 
         keywordRecognizer = new KeywordRecognizer(keywordActions.Keys.ToArray());
         keywordRecognizer.OnPhraseRecognized += OnPhraseRecognized;
@@ -93,6 +94,19 @@ public class MovementController : MonoBehaviour
 
         if (ViewSwapper.Instance != null)
             ViewSwapper.Instance.OnViewChanged += OnViewSwapped;
+    }
+
+    private void AddCommandVariants(string mainWord, System.Action action, params string[] variants)
+    {
+        // Add the main word
+        if (!keywordActions.ContainsKey(mainWord))
+            keywordActions.Add(mainWord, action);
+        // Add each variant
+        foreach (string v in variants)
+        {
+            if (!keywordActions.ContainsKey(v))
+                keywordActions.Add(v, action);
+        }
     }
 
     void Update()
@@ -216,7 +230,6 @@ public class MovementController : MonoBehaviour
 
     void OnViewSwapped(ViewSwapper.ViewMode newView)
     {
-        // Play animation trigger
         if (animator != null)
         {
             if (newView == ViewSwapper.ViewMode.Blue)
@@ -225,7 +238,6 @@ public class MovementController : MonoBehaviour
                 animator.SetTrigger("SwapRight");
         }
 
-        // Smooth blendshape transition
         if (characterMesh != null)
         {
             if (blendshapeCoroutine != null)
@@ -260,7 +272,6 @@ public class MovementController : MonoBehaviour
             characterMesh.SetBlendShapeWeight(redIdx, newRed);
             yield return null;
         }
-        // Ensure final values
         characterMesh.SetBlendShapeWeight(blueIdx, targetBlue);
         characterMesh.SetBlendShapeWeight(redIdx, targetRed);
         blendshapeCoroutine = null;
