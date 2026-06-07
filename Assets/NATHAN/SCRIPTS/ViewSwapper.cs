@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using System.Collections.Generic;
 
 public class ViewSwapper : MonoBehaviour
 {
@@ -20,6 +21,14 @@ public class ViewSwapper : MonoBehaviour
     [Header("Input")]
     public KeyCode swapKey = KeyCode.Q;
 
+    [Header("Layer Visibility")]
+    public LayerMask redLayer;   // objects on this layer will be visible only in Red view
+    public LayerMask blueLayer;  // objects on this layer will be visible only in Blue view
+
+    // Cache to avoid re‑searching every frame (optional but efficient)
+    private List<Renderer> allRenderers = new List<Renderer>();
+    private List<Collider> allColliders = new List<Collider>();
+
     public System.Action<ViewMode> OnViewChanged;
 
     void Awake()
@@ -30,18 +39,19 @@ public class ViewSwapper : MonoBehaviour
 
     void Start()
     {
-        // Find the volume if not assigned
+        // Cache all renderers and colliders once at start (assumes they don't change dynamically)
+        allRenderers.Clear();
+        allColliders.Clear();
+        allRenderers.AddRange(FindObjectsByType<Renderer>(FindObjectsSortMode.None));
+        allColliders.AddRange(FindObjectsByType<Collider>(FindObjectsSortMode.None));
+
         if (postProcessVolume == null)
             postProcessVolume = FindFirstObjectByType<Volume>();
 
         if (postProcessVolume != null && postProcessVolume.profile.TryGet(out colorAdjustments))
-        {
             Debug.Log("ColorAdjustments found – tint will work.");
-        }
         else
-        {
             Debug.LogError("ColorAdjustments not found! Please assign a Volume with Color Adjustments override.");
-        }
 
         ApplyView(currentView);
     }
@@ -54,15 +64,12 @@ public class ViewSwapper : MonoBehaviour
 
     public void ToggleView()
     {
-        Debug.Log("ToggleView called, current view = " + currentView);
         currentView = (currentView == ViewMode.Blue) ? ViewMode.Red : ViewMode.Blue;
         ApplyView(currentView);
     }
 
     void ApplyView(ViewMode mode)
     {
-        Debug.Log("ApplyView: " + mode);
-
         // Update colour filter
         if (colorAdjustments != null)
         {
@@ -70,34 +77,33 @@ public class ViewSwapper : MonoBehaviour
                 colorAdjustments.colorFilter.Override(blueFilter);
             else
                 colorAdjustments.colorFilter.Override(redFilter);
-            Debug.Log("Color filter set to " + (mode == ViewMode.Blue ? "Blue" : "Red"));
         }
-        else
+
+        // Determine which layers should be visible
+        bool redVisible = (mode == ViewMode.Red);
+        bool blueVisible = (mode == ViewMode.Blue);
+
+        // Toggle renderers based on layer
+        foreach (Renderer rend in allRenderers)
         {
-            Debug.LogWarning("ColorAdjustments missing – tint unchanged.");
+            int objLayer = rend.gameObject.layer;
+            if (((1 << objLayer) & redLayer) != 0)      // object is on red layer
+                rend.enabled = redVisible;
+            else if (((1 << objLayer) & blueLayer) != 0) // object is on blue layer
+                rend.enabled = blueVisible;
+            // objects on other layers remain always visible
         }
 
-        // Hide/show objects based on tags
-        GameObject[] redObjects = GameObject.FindGameObjectsWithTag("RedObject");
-        GameObject[] blueObjects = GameObject.FindGameObjectsWithTag("BlueObject");
+        // Toggle colliders similarly (so you can't collide with invisible objects)
+        foreach (Collider col in allColliders)
+        {
+            int objLayer = col.gameObject.layer;
+            if (((1 << objLayer) & redLayer) != 0)
+                col.enabled = redVisible;
+            else if (((1 << objLayer) & blueLayer) != 0)
+                col.enabled = blueVisible;
+        }
 
-        bool showRed = (mode == ViewMode.Red);
-        bool showBlue = (mode == ViewMode.Blue);
-
-        foreach (GameObject obj in redObjects)
-            SetRenderersAndColliders(obj, showRed);
-        foreach (GameObject obj in blueObjects)
-            SetRenderersAndColliders(obj, showBlue);
-
-        // Notify listeners (for animation and blendshapes)
         OnViewChanged?.Invoke(mode);
-    }
-
-    void SetRenderersAndColliders(GameObject obj, bool active)
-    {
-        foreach (Renderer rend in obj.GetComponentsInChildren<Renderer>())
-            rend.enabled = active;
-        foreach (Collider col in obj.GetComponentsInChildren<Collider>())
-            col.enabled = active;
     }
 }
