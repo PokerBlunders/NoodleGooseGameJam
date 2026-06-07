@@ -18,8 +18,6 @@ public class ViewSwapper : MonoBehaviour
     public Color redFilter = new Color(1f, 0.2f, 0.2f);
     public Color blueFilter = new Color(0.2f, 0.2f, 1f);
 
-    [Header("Input")]
-    public KeyCode swapKey = KeyCode.Q;
 
     [Header("Layer Visibility")]
     public LayerMask redLayer;   // objects on this layer will be visible only in Red view
@@ -56,11 +54,6 @@ public class ViewSwapper : MonoBehaviour
         ApplyView(currentView);
     }
 
-    void Update()
-    {
-        if (Input.GetKeyDown(swapKey))
-            ToggleView();
-    }
 
     public void ToggleView()
     {

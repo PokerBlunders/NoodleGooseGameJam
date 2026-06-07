@@ -50,8 +50,13 @@ public class MovementController : MonoBehaviour
     [Header("Obstacle")]
     public string obstacleTag = "Obstacle";
 
+    [Header("Voice Recognition (Fuzzy)")]
+    [Tooltip("Maximum edit distance allowed for a mispronounced word (0 = exact, 3 = very forgiving)")]
+    public int fuzzyThreshold = 3;
+
     private KeywordRecognizer keywordRecognizer;
     private Dictionary<string, System.Action> keywordActions = new Dictionary<string, System.Action>();
+    private List<string> baseCommands = new List<string>();
     public System.Action OnSwap;
 
     private Rigidbody rb;
@@ -78,14 +83,25 @@ public class MovementController : MonoBehaviour
         targetX = (currentLane - 1) * laneDistance;
         transform.position = new Vector3(targetX, transform.position.y, transform.position.z);
 
-        // Add main commands and common mispronunciation variants
-        AddCommandVariants("left", MoveLeft, "lef", "lft", "lept", "leff");
-        AddCommandVariants("right", MoveRight, "rite", "righ", "ryt", "reight");
-        AddCommandVariants("jump", RequestJump, "jmp", "jomp", "jup", "jamp");
-        AddCommandVariants("slide", RequestSlide, "slid", "slyde", "slie", "sligh");
-        AddCommandVariants("swap", TriggerSwap, "swop", "swp", "sap", "swapp");
+        // ---------- EXTENSIVE VARIANT LISTS (no duplicates inside each command) ----------
+        AddCommandVariants("left", MoveLeft,
+            "lef", "lft", "lept", "leff", "laf", "leaft", "lefet", "leftt", "levt", "lep", "lefth", "lefht", "lefty", "leftht");
+        AddCommandVariants("right", MoveRight,
+            "rite", "righ", "ryt", "reight", "raight", "rightt", "rigt", "riht", "ryte", "writ", "rait", "rith", "righht", "ryght");
+        AddCommandVariants("jump", RequestJump,
+            "jmp", "jomp", "jup", "jamp", "jum", "jimp", "jmup", "jumpp", "jumb", "jumpa", "jumpe", "jumpk", "jamb");
+        AddCommandVariants("slide", RequestSlide,
+            "slid", "slyde", "slie", "sligh", "sliede", "slidd", "slidee", "slidy", "slyd", "slad", "slidde", "slith", "slight", "sliid");
+        AddCommandVariants("swap", TriggerSwap,
+            "swop", "swp", "sap", "swapp", "swape", "swab", "swep", "swup", "swip", "swaap", "swaph");
 
-        keywordRecognizer = new KeywordRecognizer(keywordActions.Keys.ToArray());
+        // Base commands for fuzzy fallback
+        baseCommands.Clear();
+        baseCommands.AddRange(new[] { "left", "right", "jump", "slide", "swap" });
+
+        // Remove duplicate keywords (in case any variant matches the main word or another variant)
+        HashSet<string> uniqueKeywords = new HashSet<string>(keywordActions.Keys);
+        keywordRecognizer = new KeywordRecognizer(uniqueKeywords.ToArray());
         keywordRecognizer.OnPhraseRecognized += OnPhraseRecognized;
         keywordRecognizer.Start();
 
@@ -98,10 +114,8 @@ public class MovementController : MonoBehaviour
 
     private void AddCommandVariants(string mainWord, System.Action action, params string[] variants)
     {
-        // Add the main word
         if (!keywordActions.ContainsKey(mainWord))
             keywordActions.Add(mainWord, action);
-        // Add each variant
         foreach (string v in variants)
         {
             if (!keywordActions.ContainsKey(v))
@@ -291,9 +305,58 @@ public class MovementController : MonoBehaviour
 
     void OnPhraseRecognized(PhraseRecognizedEventArgs args)
     {
-        string word = args.text.ToLower();
-        if (keywordActions.ContainsKey(word))
-            keywordActions[word]();
+        string spoken = args.text.ToLower();
+        Debug.Log($"Heard: '{spoken}'");
+
+        if (keywordActions.ContainsKey(spoken))
+        {
+            keywordActions[spoken]();
+            return;
+        }
+
+        int bestDist = int.MaxValue;
+        string bestCmd = null;
+        foreach (string cmd in baseCommands)
+        {
+            int dist = LevenshteinDistance(spoken, cmd);
+            if (dist < bestDist && dist <= fuzzyThreshold)
+            {
+                bestDist = dist;
+                bestCmd = cmd;
+            }
+        }
+
+        if (bestCmd != null && keywordActions.ContainsKey(bestCmd))
+        {
+            Debug.Log($"Fuzzy match: '{spoken}' -> '{bestCmd}' (distance {bestDist})");
+            keywordActions[bestCmd]();
+        }
+        else
+        {
+            Debug.Log($"No match for '{spoken}' (best distance {bestDist})");
+        }
+    }
+
+    private int LevenshteinDistance(string a, string b)
+    {
+        if (string.IsNullOrEmpty(a)) return b?.Length ?? 0;
+        if (string.IsNullOrEmpty(b)) return a.Length;
+        int[,] d = new int[a.Length + 1, b.Length + 1];
+        for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
+        for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+        for (int i = 1; i <= a.Length; i++)
+        {
+            for (int j = 1; j <= b.Length; j++)
+            {
+                int cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
+                d[i, j] = Mathf.Min(
+                    d[i - 1, j] + 1,
+                    d[i, j - 1] + 1,
+                    d[i - 1, j - 1] + cost
+                );
+            }
+        }
+        return d[a.Length, b.Length];
     }
 
     void OnDestroy()
