@@ -2565,7 +2565,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.21, y: 0.48, z: 18.12}
-  m_LocalScale: {x: 1.421511, y: 0.7611184, z: 0.15}
+  m_LocalScale: {x: 1.421511, y: 0.7611184, z: 0.9435622}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 350760958}
@@ -3686,7 +3686,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -11.454749, y: -0, z: 36.4}
-  m_LocalScale: {x: 6, y: 1, z: 60}
+  m_LocalScale: {x: -6, y: 1, z: 60}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1807019031}
@@ -4262,7 +4262,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -11.454749, y: -0, z: 36.4}
-  m_LocalScale: {x: 6, y: 1, z: 60}
+  m_LocalScale: {x: -6, y: 1, z: 60}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1740209750}
@@ -6777,7 +6777,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -11.454749, y: -0, z: 36.4}
-  m_LocalScale: {x: 6, y: 1, z: 60}
+  m_LocalScale: {x: -6, y: 1, z: 60}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1629403548}
@@ -9345,7 +9345,6 @@ GameObject:
   - component: {fileID: 708102416}
   - component: {fileID: 708102415}
   - component: {fileID: 708102420}
-  - component: {fileID: 708102421}
   - component: {fileID: 708102419}
   m_Layer: 7
   m_Name: Player
@@ -9361,7 +9360,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 708102414}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 00206911bd7b25f4691f3ecf549efe81, type: 3}
   m_Name: 
@@ -9467,8 +9466,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VoiceProcessor
   MicrophoneIndex: 0
   _minimumSpeakingSampleValue: 0.05
-  _silenceTimer: 0.05
-  _autoDetect: 0
+  _silenceTimer: 1
+  _autoDetect: 1
 --- !u!114 &708102420
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9476,63 +9475,29 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 708102414}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f217616079a9a74489a1ae3cd9178787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VoskSpeechToText
   forwardSpeed: 2
-  laneDistance: 2.125
-  laneSwitchSpeed: 15
-  jumpForce: 12
+  laneDistance: 2.5
+  laneSwitchSpeed: 12
+  jumpForce: 6
   gravity: 18
-  groundCheckRadius: 0.1
+  groundCheckRadius: 0.2
   groundLayer:
     serializedVersion: 2
     m_Bits: 256
   groundCheck: {fileID: 358489953}
   coyoteTime: 0.12
-  jumpBufferTime: 0
-  slideDuration: 1.2
-  slideHeightReduction: 1
+  jumpBufferTime: 0.1
+  slideDuration: 0.8
+  slideHeightReduction: 0.5
   animator: {fileID: 80021257}
   characterMesh: {fileID: 620513201}
   blueBlendshapeName: Blue
   redBlendshapeName: Red
-  blendshapeTransitionDuration: 0.2
-  obstacleTag: Obstacle
-  ModelFolderName: vosk-model-small-en-us-0.15
-  VoiceProcessor: {fileID: 708102419}
---- !u!114 &708102421
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 708102414}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 54dab693cadbcb545a841a37deb9cb68, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VoskSpeechToTextNEW
-  forwardSpeed: 2
-  laneDistance: 2.125
-  laneSwitchSpeed: 15
-  jumpForce: 12
-  gravity: 18
-  groundCheckRadius: 0.1
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 256
-  groundCheck: {fileID: 358489953}
-  coyoteTime: 0.12
-  jumpBufferTime: 0
-  slideDuration: 1.2
-  slideHeightReduction: 1
-  animator: {fileID: 80021257}
-  characterMesh: {fileID: 620513201}
-  blueBlendshapeName: MoveRight
-  redBlendshapeName: MoveLeft
   blendshapeTransitionDuration: 0.2
   obstacleTag: Obstacle
   ModelFolderName: vosk-model-small-en-us-0.15
@@ -11904,7 +11869,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -11.454749, y: -0, z: 36.4}
-  m_LocalScale: {x: 6, y: 1, z: 60}
+  m_LocalScale: {x: -6, y: 1, z: 60}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1234767481}
@@ -12099,7 +12064,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -11.454749, y: -0, z: 36.4}
-  m_LocalScale: {x: 6, y: 1, z: 60}
+  m_LocalScale: {x: -6, y: 1, z: 60}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1431073337}
@@ -13414,7 +13379,7 @@ GameObject:
   - component: {fileID: 1008364446}
   - component: {fileID: 1008364445}
   m_Layer: 7
-  m_Name: Main Camera
+  m_Name: Main Camera (1)
   m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -14300,7 +14265,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.21, y: 0.48, z: 18.12}
-  m_LocalScale: {x: 1.421511, y: 0.7611184, z: 0.15}
+  m_LocalScale: {x: 1.421511, y: 0.7611184, z: 0.9435622}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 941826758}
@@ -15038,7 +15003,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.21, y: 0.48, z: 24.51}
-  m_LocalScale: {x: 1.421511, y: 0.7611184, z: 0.15}
+  m_LocalScale: {x: 1.421511, y: 0.7611184, z: 0.9435622}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 782723148}
@@ -19425,7 +19390,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -11.454749, y: -0, z: 36.4}
-  m_LocalScale: {x: 6, y: 1, z: 60}
+  m_LocalScale: {x: -6, y: 1, z: 60}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 471206640}
@@ -19975,7 +19940,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -11.454749, y: -0, z: 36.4}
-  m_LocalScale: {x: 6, y: 1, z: 60}
+  m_LocalScale: {x: -6, y: 1, z: 60}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1542093422}

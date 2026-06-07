@@ -9345,7 +9345,6 @@ GameObject:
   - component: {fileID: 708102416}
   - component: {fileID: 708102415}
   - component: {fileID: 708102420}
-  - component: {fileID: 708102421}
   - component: {fileID: 708102419}
   m_Layer: 7
   m_Name: Player
@@ -9361,7 +9360,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 708102414}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 00206911bd7b25f4691f3ecf549efe81, type: 3}
   m_Name: 
@@ -9476,7 +9475,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 708102414}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f217616079a9a74489a1ae3cd9178787, type: 3}
   m_Name: 
@@ -9499,40 +9498,6 @@ MonoBehaviour:
   characterMesh: {fileID: 620513201}
   blueBlendshapeName: Blue
   redBlendshapeName: Red
-  blendshapeTransitionDuration: 0.2
-  obstacleTag: Obstacle
-  ModelFolderName: vosk-model-small-en-us-0.15
-  VoiceProcessor: {fileID: 708102419}
---- !u!114 &708102421
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 708102414}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 54dab693cadbcb545a841a37deb9cb68, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VoskSpeechToTextNEW
-  forwardSpeed: 2
-  laneDistance: 2.125
-  laneSwitchSpeed: 15
-  jumpForce: 12
-  gravity: 18
-  groundCheckRadius: 0.1
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 256
-  groundCheck: {fileID: 358489953}
-  coyoteTime: 0.12
-  jumpBufferTime: 0
-  slideDuration: 1.2
-  slideHeightReduction: 1
-  animator: {fileID: 80021257}
-  characterMesh: {fileID: 620513201}
-  blueBlendshapeName: MoveRight
-  redBlendshapeName: MoveLeft
   blendshapeTransitionDuration: 0.2
   obstacleTag: Obstacle
   ModelFolderName: vosk-model-small-en-us-0.15
@@ -13414,7 +13379,7 @@ GameObject:
   - component: {fileID: 1008364446}
   - component: {fileID: 1008364445}
   m_Layer: 7
-  m_Name: Main Camera
+  m_Name: Main Camera (1)
   m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
