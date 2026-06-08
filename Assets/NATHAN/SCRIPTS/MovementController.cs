@@ -37,6 +37,9 @@ public class MovementController : MonoBehaviour
     private Vector3 originalCenter;
     private CapsuleCollider capsuleCollider;
 
+    [Header("Slide Speed Boost")]
+    public float slideSpeedMultiplier = 1.5f;   // faster forward speed while sliding
+
     [Header("Animation")]
     public Animator animator;
 
@@ -49,6 +52,9 @@ public class MovementController : MonoBehaviour
 
     [Header("Obstacle")]
     public string obstacleTag = "Obstacle";
+
+    [Header("Air Control")]
+    public float airSpeedMultiplier = 1.75f;
 
     [Header("Voice Recognition (Fuzzy)")]
     [Tooltip("Maximum edit distance allowed for a mispronounced word (0 = exact, 3 = very forgiving)")]
@@ -83,7 +89,6 @@ public class MovementController : MonoBehaviour
         targetX = (currentLane - 1) * laneDistance;
         transform.position = new Vector3(targetX, transform.position.y, transform.position.z);
 
-        // ---------- EXTENSIVE VARIANT LISTS (no duplicates inside each command) ----------
         AddCommandVariants("left", MoveLeft,
             "lef", "lft", "lept", "leff", "laf", "leaft", "lefet", "leftt", "levt", "lep", "lefth", "lefht", "lefty", "leftht");
         AddCommandVariants("right", MoveRight,
@@ -95,11 +100,9 @@ public class MovementController : MonoBehaviour
         AddCommandVariants("swap", TriggerSwap,
             "swop", "swp", "sap", "swapp", "swape", "swab", "swep", "swup", "swip", "swaap", "swaph");
 
-        // Base commands for fuzzy fallback
         baseCommands.Clear();
         baseCommands.AddRange(new[] { "left", "right", "jump", "slide", "swap" });
 
-        // Remove duplicate keywords (in case any variant matches the main word or another variant)
         HashSet<string> uniqueKeywords = new HashSet<string>(keywordActions.Keys);
         keywordRecognizer = new KeywordRecognizer(uniqueKeywords.ToArray());
         keywordRecognizer.OnPhraseRecognized += OnPhraseRecognized;
@@ -143,7 +146,13 @@ public class MovementController : MonoBehaviour
         rb.linearVelocity += Vector3.down * gravity * Time.deltaTime;
 
         Vector3 vel = rb.linearVelocity;
-        vel.z = forwardSpeed;
+        // Apply forward speed: sliding > air > normal
+        if (isSliding)
+            vel.z = forwardSpeed * slideSpeedMultiplier;
+        else if (!isGrounded)
+            vel.z = forwardSpeed * airSpeedMultiplier;
+        else
+            vel.z = forwardSpeed;
         rb.linearVelocity = vel;
 
         bool newGrounded = false;
@@ -238,8 +247,6 @@ public class MovementController : MonoBehaviour
     {
         if (ViewSwapper.Instance != null)
             ViewSwapper.Instance.ToggleView();
-        else
-            Debug.LogWarning("ViewSwapper instance not found");
     }
 
     void OnViewSwapped(ViewSwapper.ViewMode newView)
@@ -265,10 +272,7 @@ public class MovementController : MonoBehaviour
         int blueIdx = characterMesh.sharedMesh.GetBlendShapeIndex(blueBlendshapeName);
         int redIdx = characterMesh.sharedMesh.GetBlendShapeIndex(redBlendshapeName);
         if (blueIdx == -1 || redIdx == -1)
-        {
-            Debug.LogWarning("Blendshape names not found");
             yield break;
-        }
 
         float startBlue = characterMesh.GetBlendShapeWeight(blueIdx);
         float startRed = characterMesh.GetBlendShapeWeight(redIdx);
@@ -306,7 +310,6 @@ public class MovementController : MonoBehaviour
     void OnPhraseRecognized(PhraseRecognizedEventArgs args)
     {
         string spoken = args.text.ToLower();
-        Debug.Log($"Heard: '{spoken}'");
 
         if (keywordActions.ContainsKey(spoken))
         {
@@ -327,14 +330,7 @@ public class MovementController : MonoBehaviour
         }
 
         if (bestCmd != null && keywordActions.ContainsKey(bestCmd))
-        {
-            Debug.Log($"Fuzzy match: '{spoken}' -> '{bestCmd}' (distance {bestDist})");
             keywordActions[bestCmd]();
-        }
-        else
-        {
-            Debug.Log($"No match for '{spoken}' (best distance {bestDist})");
-        }
     }
 
     private int LevenshteinDistance(string a, string b)
