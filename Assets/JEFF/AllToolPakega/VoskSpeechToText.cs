@@ -43,26 +43,20 @@ public class VoskSpeechToText : MonoBehaviour
     [Header("Animation")]
     public Animator animator;
 
-    [Header("View Swap Animations & Blendshapes")]
-    public SkinnedMeshRenderer characterMesh;
-    public string blueBlendshapeName = "Blue";
-    public string redBlendshapeName = "Red";
-    public float blendshapeTransitionDuration = 0.2f;
-    private Coroutine blendshapeCoroutine = null;
-
-    [Header("Obstacle")]
-    public string obstacleTag = "Obstacle";
-
     [Header("Vosk Settings")]
     public string ModelFolderName = "vosk-model-small-en-us-0.15";
     public VoiceProcessor VoiceProcessor;
     private Model _model;
     private VoskRecognizer _recognizer;
+    private bool _running;
     private readonly ConcurrentQueue<short[]> _threadedBufferQueue = new ConcurrentQueue<short[]>();
     private readonly ConcurrentQueue<string> _threadedResultQueue = new ConcurrentQueue<string>();
-    private bool _running;
 
-    [Serializable] private struct VoskJsonBridge { public string text; }
+    [Serializable] private struct VoskJsonBridge { public string text; public string partial; }
+
+    // 优化：将冷却时间设为 0.25s，兼顾识别防抖与操作灵敏度
+    private Dictionary<string, float> _lastCommandTime = new Dictionary<string, float>();
+    private const float CooldownTime = 0.25f;
 
     private Rigidbody rb;
     private bool isGrounded;
@@ -76,19 +70,51 @@ public class VoskSpeechToText : MonoBehaviour
             originalHeight = capsuleCollider.height;
             originalCenter = capsuleCollider.center;
         }
-        if (animator == null) animator = GetComponent<Animator>();
     }
 
     void Start()
     {
+        // 1. 确保位置初始化正确
         targetX = (currentLane - 1) * laneDistance;
         transform.position = new Vector3(targetX, transform.position.y, transform.position.z);
-
-        // 初始化 Vosk
-        StartVoskStt();
-
         if (animator != null) animator.SetBool("isRunning", true);
-        if (ViewSwapper.Instance != null) ViewSwapper.Instance.OnViewChanged += OnViewSwapped;
+
+        // 2. 使用 try-catch 包裹初始化，防止底层 DLL 崩溃导致游戏完全无法启动
+        try
+        {
+            string modelPath = Path.Combine(Application.streamingAssetsPath, ModelFolderName);
+            Debug.Log("尝试加载模型路径: " + modelPath);
+
+            // 检查模型文件是否存在
+            if (!Directory.Exists(modelPath))
+            {
+                Debug.LogError("【Vosk错误】模型目录不存在！请检查 StreamingAssets 目录下是否有名为 " + ModelFolderName + " 的文件夹");
+                return;
+            }
+
+            // 初始化 Vosk
+            _model = new Model(modelPath);
+            _recognizer = new VoskRecognizer(_model, 16000.0f);
+
+            // 启动录音
+            if (VoiceProcessor != null)
+            {
+                VoiceProcessor.OnFrameCaptured += (samples) => _threadedBufferQueue.Enqueue(samples);
+                VoiceProcessor.StartRecording(16000, 512, false);
+                _running = true;
+                Task.Run(ThreadedWork);
+                Debug.Log("Vosk 初始化成功！");
+            }
+            else
+            {
+                Debug.LogError("【Vosk错误】未在 Inspector 中分配 VoiceProcessor 组件！");
+            }
+        }
+        catch (Exception e)
+        {
+            // 如果 DLL 加载失败或内存报错，这里会打印堆栈信息
+            Debug.LogError("【Vosk严重错误】初始化异常: " + e.Message + "\n" + e.StackTrace);
+        }
     }
 
     private void StartVoskStt()
@@ -97,15 +123,12 @@ public class VoskSpeechToText : MonoBehaviour
         _model = new Model(modelPath);
         _recognizer = new VoskRecognizer(_model, 16000.0f);
 
-        VoiceProcessor.OnFrameCaptured += OnFrameCapturedHandler;
+        VoiceProcessor.OnFrameCaptured += (samples) => _threadedBufferQueue.Enqueue(samples);
         VoiceProcessor.StartRecording(16000, 512, false);
 
         _running = true;
         Task.Run(ThreadedWork);
-        Debug.Log("[Vosk] 引擎已启动");
     }
-
-    private void OnFrameCapturedHandler(short[] samples) => _threadedBufferQueue.Enqueue(samples);
 
     private async Task ThreadedWork()
     {
@@ -113,8 +136,9 @@ public class VoskSpeechToText : MonoBehaviour
         {
             if (_threadedBufferQueue.TryDequeue(out short[] samples))
             {
-                if (_recognizer.AcceptWaveform(samples, samples.Length))
-                    _threadedResultQueue.Enqueue(_recognizer.Result());
+                bool isFullResult = _recognizer.AcceptWaveform(samples, samples.Length);
+                string json = isFullResult ? _recognizer.Result() : _recognizer.PartialResult();
+                if (!string.IsNullOrEmpty(json)) _threadedResultQueue.Enqueue(json);
             }
             await Task.Delay(10);
         }
@@ -122,46 +146,43 @@ public class VoskSpeechToText : MonoBehaviour
 
     void Update()
     {
-        // 键盘输入保留
-        if (Input.GetKeyDown(KeyCode.A)) MoveLeft();
-        if (Input.GetKeyDown(KeyCode.D)) MoveRight();
-        if (Input.GetKeyDown(KeyCode.Space)) RequestJump();
-        if (Input.GetKeyDown(KeyCode.LeftControl)) RequestSlide();
-        if (Input.GetKeyDown(KeyCode.Q)) TriggerSwap();
+        // 键盘输入
+        if (Input.GetKeyDown(KeyCode.A)) ExecuteCommand("left");
+        if (Input.GetKeyDown(KeyCode.D)) ExecuteCommand("right");
+        if (Input.GetKeyDown(KeyCode.Space)) ExecuteCommand("jump");
+        if (Input.GetKeyDown(KeyCode.LeftControl)) ExecuteCommand("slide");
 
-        // 处理 Vosk 识别结果
+        // 处理语音识别结果
         while (_threadedResultQueue.TryDequeue(out string result))
         {
-            string command = JsonUtility.FromJson<VoskJsonBridge>(result).text.ToLower();
-            if (string.IsNullOrEmpty(command)) continue;
+            var data = JsonUtility.FromJson<VoskJsonBridge>(result);
+            string command = !string.IsNullOrEmpty(data.text) ? data.text.ToLower() : data.partial.ToLower();
 
-            Debug.Log($"[识别指令]: {command}");
-            if (command.Contains("left")) MoveLeft();
-            else if (command.Contains("right")) MoveRight();
-            else if (command.Contains("jump")) RequestJump();
-            else if (command.Contains("slide")) RequestSlide();
-            else if (command.Contains("swap")) TriggerSwap();
+            if (!string.IsNullOrEmpty(command))
+            {
+                if (command.Contains("left")) ExecuteCommand("left");
+                else if (command.Contains("right")) ExecuteCommand("right");
+                else if (command.Contains("jump")) ExecuteCommand("jump");
+                else if (command.Contains("slide")) ExecuteCommand("slide");
+            }
         }
 
-        // 移动逻辑
+        // 移动平滑插值
         float newX = Mathf.Lerp(transform.position.x, targetX, laneSwitchSpeed * Time.deltaTime);
         rb.position = new Vector3(newX, rb.position.y, rb.position.z);
-
-        if (coyoteTimer > 0) coyoteTimer -= Time.deltaTime;
-        if (jumpBufferTimer > 0) jumpBufferTimer -= Time.deltaTime;
     }
 
     void FixedUpdate()
     {
-        rb.linearVelocity += Vector3.down * gravity * Time.deltaTime;
-        Vector3 vel = rb.linearVelocity;
-        vel.z = forwardSpeed;
-        rb.linearVelocity = vel;
+        // 物理逻辑：确保重力和前进力生效
+        rb.linearVelocity = new Vector3(rb.linearVelocity.x, rb.linearVelocity.y - (gravity * Time.fixedDeltaTime), forwardSpeed);
 
+        // 地面检测
         bool newGrounded = (groundCheck != null) && Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundLayer);
         if (newGrounded) coyoteTimer = coyoteTime;
         isGrounded = newGrounded;
 
+        // 跳跃执行
         if ((jumpBufferTimer > 0 || jumpRequested) && coyoteTimer > 0 && !isSliding)
         {
             rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpForce, rb.linearVelocity.z);
@@ -170,20 +191,30 @@ public class VoskSpeechToText : MonoBehaviour
             animator?.SetTrigger("Jump");
         }
 
-        if (isSliding) { slideTimer -= Time.deltaTime; if (slideTimer <= 0f) EndSlide(); }
+        // 计时器更新
+        if (coyoteTimer > 0) coyoteTimer -= Time.fixedDeltaTime;
+        if (jumpBufferTimer > 0) jumpBufferTimer -= Time.fixedDeltaTime;
+        if (isSliding) { slideTimer -= Time.fixedDeltaTime; if (slideTimer <= 0f) EndSlide(); }
     }
 
-    // --- 动作方法保持不变 ---
-    void MoveLeft() { if (currentLane > 0) { currentLane--; targetX = (currentLane - 1) * laneDistance; animator?.SetTrigger("Left"); } }
-    void MoveRight() { if (currentLane < 2) { currentLane++; targetX = (currentLane - 1) * laneDistance; animator?.SetTrigger("Right"); } }
-    void RequestJump() { if (isGrounded && !isSliding) jumpRequested = true; else jumpBufferTimer = jumpBufferTime; }
-    void RequestSlide() { if (!isSliding && isGrounded && !jumpRequested) StartSlide(); else jumpBufferTimer = jumpBufferTime; }
-    void StartSlide() { isSliding = true; slideTimer = slideDuration; if (capsuleCollider) { capsuleCollider.height = originalHeight - slideHeightReduction; capsuleCollider.center = new Vector3(originalCenter.x, originalCenter.y - (slideHeightReduction * 0.5f), originalCenter.z); } animator?.SetTrigger("Slide"); }
-    void EndSlide() { isSliding = false; if (capsuleCollider) { capsuleCollider.height = originalHeight; capsuleCollider.center = originalCenter; } }
-    void TriggerSwap() { ViewSwapper.Instance?.ToggleView(); }
-    void OnViewSwapped(ViewSwapper.ViewMode newView) { /* ... 保持原有逻辑 ... */ }
+    private void ExecuteCommand(string cmd)
+    {
+        if (_lastCommandTime.ContainsKey(cmd) && Time.time - _lastCommandTime[cmd] < CooldownTime)
+            return;
 
-    // --- 资源清理 ---
+        _lastCommandTime[cmd] = Time.time;
+
+        switch (cmd)
+        {
+            case "left": if (currentLane > 0) { currentLane--; targetX = (currentLane - 1) * laneDistance; animator?.SetTrigger("Left"); } break;
+            case "right": if (currentLane < 2) { currentLane++; targetX = (currentLane - 1) * laneDistance; animator?.SetTrigger("Right"); } break;
+            case "jump": if (isGrounded && !isSliding) jumpRequested = true; else jumpBufferTimer = jumpBufferTime; break;
+            case "slide": if (!isSliding && isGrounded && !jumpRequested) { isSliding = true; slideTimer = slideDuration; if (capsuleCollider) capsuleCollider.height = originalHeight - slideHeightReduction; animator?.SetTrigger("Slide"); } break;
+        }
+    }
+
+    private void EndSlide() { isSliding = false; if (capsuleCollider) capsuleCollider.height = originalHeight; }
+
     void OnDestroy()
     {
         _running = false;
@@ -191,6 +222,4 @@ public class VoskSpeechToText : MonoBehaviour
         _recognizer?.Dispose();
         _model?.Dispose();
     }
-
-    // ... 其余逻辑 (OnCollisionEnter, SmoothBlendshapeTransition 等保持不变)
 }
