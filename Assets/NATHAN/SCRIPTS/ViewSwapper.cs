@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-using System.Collections.Generic;
 
 public class ViewSwapper : MonoBehaviour
 {
@@ -18,14 +17,9 @@ public class ViewSwapper : MonoBehaviour
     public Color redFilter = new Color(1f, 0.2f, 0.2f);
     public Color blueFilter = new Color(0.2f, 0.2f, 1f);
 
-
     [Header("Layer Visibility")]
-    public LayerMask redLayer;   // objects on this layer will be visible only in Red view
-    public LayerMask blueLayer;  // objects on this layer will be visible only in Blue view
-
-    // Cache to avoid re‑searching every frame (optional but efficient)
-    private List<Renderer> allRenderers = new List<Renderer>();
-    private List<Collider> allColliders = new List<Collider>();
+    public LayerMask redLayer;
+    public LayerMask blueLayer;
 
     public System.Action<ViewMode> OnViewChanged;
 
@@ -37,23 +31,16 @@ public class ViewSwapper : MonoBehaviour
 
     void Start()
     {
-        // Cache all renderers and colliders once at start (assumes they don't change dynamically)
-        allRenderers.Clear();
-        allColliders.Clear();
-        allRenderers.AddRange(FindObjectsByType<Renderer>(FindObjectsSortMode.None));
-        allColliders.AddRange(FindObjectsByType<Collider>(FindObjectsSortMode.None));
-
         if (postProcessVolume == null)
             postProcessVolume = FindFirstObjectByType<Volume>();
 
         if (postProcessVolume != null && postProcessVolume.profile.TryGet(out colorAdjustments))
             Debug.Log("ColorAdjustments found – tint will work.");
         else
-            Debug.LogError("ColorAdjustments not found! Please assign a Volume with Color Adjustments override.");
+            Debug.LogError("ColorAdjustments not found!");
 
         ApplyView(currentView);
     }
-
 
     public void ToggleView()
     {
@@ -72,28 +59,30 @@ public class ViewSwapper : MonoBehaviour
                 colorAdjustments.colorFilter.Override(redFilter);
         }
 
-        // Determine which layers should be visible
         bool redVisible = (mode == ViewMode.Red);
         bool blueVisible = (mode == ViewMode.Blue);
 
-        // Toggle renderers based on layer
+        // Find all Renderers and Colliders – this includes children automatically
+        Renderer[] allRenderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
         foreach (Renderer rend in allRenderers)
         {
-            int objLayer = rend.gameObject.layer;
-            if (((1 << objLayer) & redLayer) != 0)      // object is on red layer
+            if (rend == null) continue;
+            int layer = rend.gameObject.layer;
+            if (((1 << layer) & redLayer) != 0)
                 rend.enabled = redVisible;
-            else if (((1 << objLayer) & blueLayer) != 0) // object is on blue layer
+            else if (((1 << layer) & blueLayer) != 0)
                 rend.enabled = blueVisible;
-            // objects on other layers remain always visible
+            // objects on other layers keep their existing enabled state
         }
 
-        // Toggle colliders similarly (so you can't collide with invisible objects)
+        Collider[] allColliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
         foreach (Collider col in allColliders)
         {
-            int objLayer = col.gameObject.layer;
-            if (((1 << objLayer) & redLayer) != 0)
+            if (col == null) continue;
+            int layer = col.gameObject.layer;
+            if (((1 << layer) & redLayer) != 0)
                 col.enabled = redVisible;
-            else if (((1 << objLayer) & blueLayer) != 0)
+            else if (((1 << layer) & blueLayer) != 0)
                 col.enabled = blueVisible;
         }
 
