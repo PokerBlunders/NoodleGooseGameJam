@@ -21,6 +21,10 @@ public class ViewSwapper : MonoBehaviour
     public LayerMask redLayer;
     public LayerMask blueLayer;
 
+    [Header("Tag Visibility (colliders only – children included)")]
+    public string blueTag = "BlueTop";
+    public string redTag = "RedTop";
+
     public System.Action<ViewMode> OnViewChanged;
 
     void Awake()
@@ -35,9 +39,9 @@ public class ViewSwapper : MonoBehaviour
             postProcessVolume = FindFirstObjectByType<Volume>();
 
         if (postProcessVolume != null && postProcessVolume.profile.TryGet(out colorAdjustments))
-            Debug.Log("ColorAdjustments found – tint will work.");
+            Debug.Log(".");
         else
-            Debug.LogError("ColorAdjustments not found!");
+            Debug.LogError(".");
 
         ApplyView(currentView);
     }
@@ -62,7 +66,7 @@ public class ViewSwapper : MonoBehaviour
         bool redVisible = (mode == ViewMode.Red);
         bool blueVisible = (mode == ViewMode.Blue);
 
-        // Find all Renderers and Colliders – this includes children automatically
+        // --- 1. Renderers and Colliders by LAYER (original behaviour) ---
         Renderer[] allRenderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
         foreach (Renderer rend in allRenderers)
         {
@@ -72,7 +76,6 @@ public class ViewSwapper : MonoBehaviour
                 rend.enabled = redVisible;
             else if (((1 << layer) & blueLayer) != 0)
                 rend.enabled = blueVisible;
-            // objects on other layers keep their existing enabled state
         }
 
         Collider[] allColliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
@@ -86,6 +89,24 @@ public class ViewSwapper : MonoBehaviour
                 col.enabled = blueVisible;
         }
 
+        // --- 2. EXTRA: Toggle COLLIDERS ONLY for tagged objects (including children) ---
+        // BlueTag objects: colliders enabled only in Blue view
+        GameObject[] blueTagged = GameObject.FindGameObjectsWithTag(blueTag);
+        foreach (GameObject obj in blueTagged)
+            ToggleCollidersOnly(obj, blueVisible);
+
+        // RedTag objects: colliders enabled only in Red view
+        GameObject[] redTagged = GameObject.FindGameObjectsWithTag(redTag);
+        foreach (GameObject obj in redTagged)
+            ToggleCollidersOnly(obj, redVisible);
+
         OnViewChanged?.Invoke(mode);
+    }
+
+    private void ToggleCollidersOnly(GameObject obj, bool active)
+    {
+        if (obj == null) return;
+        foreach (Collider col in obj.GetComponentsInChildren<Collider>())
+            col.enabled = active;
     }
 }

@@ -38,7 +38,7 @@ public class MovementController : MonoBehaviour
     private CapsuleCollider capsuleCollider;
 
     [Header("Slide Speed Boost")]
-    public float slideSpeedMultiplier = 1.5f;   // faster forward speed while sliding
+    public float slideSpeedMultiplier = 1.5f;
 
     [Header("Animation")]
     public Animator animator;
@@ -57,8 +57,15 @@ public class MovementController : MonoBehaviour
     public float airSpeedMultiplier = 1.75f;
 
     [Header("Voice Recognition (Fuzzy)")]
-    [Tooltip("Maximum edit distance allowed for a mispronounced word (0 = exact, 3 = very forgiving)")]
     public int fuzzyThreshold = 3;
+
+    [Header("Death")]
+    public float deathAnimationDuration = 1f;
+    private bool isDying = false;
+
+    [Header("Menu Command")]
+    public string menuSceneName = "MainMenu";  // Name of your menu scene
+    private bool isLoadingMenu = false;
 
     private KeywordRecognizer keywordRecognizer;
     private Dictionary<string, System.Action> keywordActions = new Dictionary<string, System.Action>();
@@ -99,9 +106,11 @@ public class MovementController : MonoBehaviour
             "slid", "slyde", "slie", "sligh", "sliede", "slidd", "slidee", "slidy", "slyd", "slad", "slidde", "slith", "slight", "sliid");
         AddCommandVariants("swap", TriggerSwap,
             "swop", "swp", "sap", "swapp", "swape", "swab", "swep", "swup", "swip", "swaap", "swaph");
+        AddCommandVariants("menu", LoadMenu,
+            "men", "menu", "mennu", "menue", "mnu"); // variants for "menu"
 
         baseCommands.Clear();
-        baseCommands.AddRange(new[] { "left", "right", "jump", "slide", "swap" });
+        baseCommands.AddRange(new[] { "left", "right", "jump", "slide", "swap", "menu" });
 
         HashSet<string> uniqueKeywords = new HashSet<string>(keywordActions.Keys);
         keywordRecognizer = new KeywordRecognizer(uniqueKeywords.ToArray());
@@ -128,6 +137,8 @@ public class MovementController : MonoBehaviour
 
     void Update()
     {
+        if (isDying || isLoadingMenu) return; // ignore input while dying or loading menu
+
         if (Input.GetKeyDown(KeyCode.A)) MoveLeft();
         if (Input.GetKeyDown(KeyCode.D)) MoveRight();
         if (Input.GetKeyDown(KeyCode.Space)) RequestJump();
@@ -143,10 +154,11 @@ public class MovementController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (isDying || isLoadingMenu) return;
+
         rb.linearVelocity += Vector3.down * gravity * Time.deltaTime;
 
         Vector3 vel = rb.linearVelocity;
-        // Apply forward speed: sliding > air > normal
         if (isSliding)
             vel.z = forwardSpeed * slideSpeedMultiplier;
         else if (!isGrounded)
@@ -295,18 +307,83 @@ public class MovementController : MonoBehaviour
         blendshapeCoroutine = null;
     }
 
+    // ---------- Death & Respawn ----------
     void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.CompareTag(obstacleTag))
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        if (collision.gameObject.CompareTag(obstacleTag) && !isDying && !isLoadingMenu)
+            StartDeathSequence();
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag(obstacleTag))
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        if (other.CompareTag(obstacleTag) && !isDying && !isLoadingMenu)
+            StartDeathSequence();
     }
 
+    private void StartDeathSequence()
+    {
+        if (isDying) return;
+        isDying = true;
+
+        rb.linearVelocity = Vector3.zero;
+        if (animator != null)
+            animator.SetTrigger("Died");
+
+        StartCoroutine(DeathSequenceCoroutine());
+    }
+
+    private IEnumerator DeathSequenceCoroutine()
+    {
+        yield return new WaitForSeconds(deathAnimationDuration);
+
+        if (CheckpointManager.Instance != null && CheckpointManager.Instance.HasCheckpoint())
+        {
+            yield return StartCoroutine(ScreenFadeManager.Instance.FadeOut());
+
+            Vector3 respawnPos = CheckpointManager.Instance.GetCheckpointPosition();
+            transform.position = respawnPos;
+            rb.linearVelocity = Vector3.zero;
+            isSliding = false;
+            jumpRequested = false;
+            currentLane = 1;
+            targetX = (currentLane - 1) * laneDistance;
+            if (animator != null)
+                animator.SetTrigger("Respawn");
+
+            isDying = false;
+            StartCoroutine(ScreenFadeManager.Instance.FadeIn());
+        }
+        else
+        {
+            yield return StartCoroutine(ScreenFadeManager.Instance.FadeOut());
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+    }
+
+    // ---------- Menu command ----------
+    private void LoadMenu()
+    {
+        if (isLoadingMenu || isDying) return;
+        isLoadingMenu = true;
+
+        // Optionally stop input immediately
+        rb.linearVelocity = Vector3.zero;
+        if (animator != null)
+            animator.SetTrigger("Died"); // optional: play a quick death/exit animation
+
+        StartCoroutine(LoadMenuCoroutine());
+    }
+
+    private IEnumerator LoadMenuCoroutine()
+    {
+        // Fade out using ScreenFadeManager
+        yield return StartCoroutine(ScreenFadeManager.Instance.FadeOut());
+        // Small extra delay (optional)
+        yield return new WaitForSeconds(0.2f);
+        SceneManager.LoadScene(menuSceneName);
+    }
+
+    // ---------- Voice recognition ----------
     void OnPhraseRecognized(PhraseRecognizedEventArgs args)
     {
         string spoken = args.text.ToLower();
@@ -341,17 +418,11 @@ public class MovementController : MonoBehaviour
         for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
         for (int j = 0; j <= b.Length; j++) d[0, j] = j;
         for (int i = 1; i <= a.Length; i++)
-        {
             for (int j = 1; j <= b.Length; j++)
             {
                 int cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
-                d[i, j] = Mathf.Min(
-                    d[i - 1, j] + 1,
-                    d[i, j - 1] + 1,
-                    d[i - 1, j - 1] + cost
-                );
+                d[i, j] = Mathf.Min(d[i - 1, j] + 1, d[i, j - 1] + 1, d[i - 1, j - 1] + cost);
             }
-        }
         return d[a.Length, b.Length];
     }
 

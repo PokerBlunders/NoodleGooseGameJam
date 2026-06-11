@@ -10,6 +10,8 @@ TagManager:
   - RedObject
   - BlueObject
   - Obstacle
+  - RedTop
+  - BlueTop
   layers:
   - Default
   - TransparentFX
@@ -26,7 +28,7 @@ TagManager:
   - RedObject
   - BlueObject
   - 
-  - 
+  - Collectable
   - 
   - 
   - 

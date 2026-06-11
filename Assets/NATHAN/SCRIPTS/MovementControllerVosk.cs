@@ -1,13 +1,14 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Vosk;
 
-public class VoskSpeechToTextNEW : MonoBehaviour
+public class MovementControllerVosk : MonoBehaviour
 {
     [Header("Forward Movement")]
     public float forwardSpeed = 10f;
@@ -39,6 +40,9 @@ public class VoskSpeechToTextNEW : MonoBehaviour
     private Vector3 originalCenter;
     private CapsuleCollider capsuleCollider;
 
+    [Header("Slide Speed Boost")]
+    public float slideSpeedMultiplier = 1.5f;
+
     [Header("Animation")]
     public Animator animator;
 
@@ -52,20 +56,24 @@ public class VoskSpeechToTextNEW : MonoBehaviour
     [Header("Obstacle")]
     public string obstacleTag = "Obstacle";
 
+    [Header("Air Control")]
+    public float airSpeedMultiplier = 1.75f;
+
     [Header("Vosk Settings")]
     public string ModelFolderName = "vosk-model-small-en-us-0.15";
     public VoiceProcessor VoiceProcessor;
     private Model _model;
     private VoskRecognizer _recognizer;
+    private bool _running;
     private readonly ConcurrentQueue<short[]> _threadedBufferQueue = new ConcurrentQueue<short[]>();
     private readonly ConcurrentQueue<string> _threadedResultQueue = new ConcurrentQueue<string>();
-    private bool _running;
 
-    [Serializable]
-    private struct VoskJsonBridge
-    {
-        public string text;
-    }
+    [Serializable] private struct VoskJsonBridge { public string text; public string partial; }
+
+    private Dictionary<string, float> _lastCommandTime = new Dictionary<string, float>();
+    private const float CommandCooldown = 0.15f;   // short cooldown prevents spam but keeps responsiveness
+
+    public System.Action OnSwap;
 
     private Rigidbody rb;
     private bool isGrounded;
@@ -84,104 +92,80 @@ public class VoskSpeechToTextNEW : MonoBehaviour
 
     void Start()
     {
-        if (groundCheck == null)
-        {
-            Debug.LogWarning("GroundCheck not assigned. Movement may not work correctly.");
-            return;
-        }
-
         targetX = (currentLane - 1) * laneDistance;
         transform.position = new Vector3(targetX, transform.position.y, transform.position.z);
-
-        // Find VoiceProcessor if not assigned
-        if (VoiceProcessor == null)
-            VoiceProcessor = FindObjectOfType<VoiceProcessor>();
-
-        if (VoiceProcessor == null)
-            Debug.LogError("[Vosk] VoiceProcessor component not found in scene!");
-        else
-            StartVoskStt();
-
         if (animator != null) animator.SetBool("isRunning", true);
-        if (ViewSwapper.Instance != null) ViewSwapper.Instance.OnViewChanged += OnViewSwapped;
-    }
 
-    private void StartVoskStt()
-    {
+        if (ViewSwapper.Instance != null)
+            ViewSwapper.Instance.OnViewChanged += OnViewSwapped;
+
         try
         {
             string modelPath = Path.Combine(Application.streamingAssetsPath, ModelFolderName);
             if (!Directory.Exists(modelPath))
             {
-                Debug.LogError($"[Vosk] Model folder not found: {modelPath}");
+                Debug.LogError("Vosk model not found at: " + modelPath);
                 return;
             }
+
             _model = new Model(modelPath);
             _recognizer = new VoskRecognizer(_model, 16000.0f);
 
-            VoiceProcessor.OnFrameCaptured += OnFrameCapturedHandler;
-            // Use continuous audio (autoDetect = false) for reliable recognition
-            VoiceProcessor.StartRecording(16000, 512, false);
-
-            _running = true;
-            Task.Run(ThreadedWork);
-            Debug.Log("[Vosk] Engine started – continuous audio, partial results enabled.");
+            if (VoiceProcessor != null)
+            {
+                VoiceProcessor.OnFrameCaptured += (samples) => _threadedBufferQueue.Enqueue(samples);
+                VoiceProcessor.StartRecording(16000, 512, false);
+                _running = true;
+                Task.Run(ThreadedWork);
+            }
+            else
+                Debug.LogError("VoiceProcessor component missing!");
         }
         catch (Exception e)
         {
-            Debug.LogError($"[Vosk] Initialisation failed: {e.Message}");
+            Debug.LogError("Vosk init failed: " + e.Message);
         }
-    }
-
-    private void OnFrameCapturedHandler(short[] samples)
-    {
-        if (_running)
-            _threadedBufferQueue.Enqueue(samples);
     }
 
     private async Task ThreadedWork()
     {
         while (_running)
         {
-            if (_threadedBufferQueue.TryDequeue(out short[] samples) && _recognizer != null)
+            if (_threadedBufferQueue.TryDequeue(out short[] samples))
             {
-                _recognizer.AcceptWaveform(samples, samples.Length);
-                string partial = _recognizer.PartialResult();
-                if (!string.IsNullOrEmpty(partial) && partial.Length > 2)
-                {
-                    _threadedResultQueue.Enqueue(partial);
-                }
+                if (!_running) break;
+                bool isFullResult = _recognizer.AcceptWaveform(samples, samples.Length);
+                string json = isFullResult ? _recognizer.Result() : _recognizer.PartialResult();
+                if (!string.IsNullOrEmpty(json)) _threadedResultQueue.Enqueue(json);
             }
-            await Task.Delay(1);
+            await Task.Delay(10);
         }
     }
 
     void Update()
     {
         // Keyboard fallbacks
-        if (Input.GetKeyDown(KeyCode.A)) MoveLeft();
-        if (Input.GetKeyDown(KeyCode.D)) MoveRight();
-        if (Input.GetKeyDown(KeyCode.Space)) RequestJump();
-        if (Input.GetKeyDown(KeyCode.LeftControl)) RequestSlide();
+        if (Input.GetKeyDown(KeyCode.A)) ExecuteCommand("left");
+        if (Input.GetKeyDown(KeyCode.D)) ExecuteCommand("right");
+        if (Input.GetKeyDown(KeyCode.Space)) ExecuteCommand("jump");
+        if (Input.GetKeyDown(KeyCode.LeftControl)) ExecuteCommand("slide");
         if (Input.GetKeyDown(KeyCode.Q)) TriggerSwap();
 
-        // Process Vosk partial results
+        // Process Vosk results (immediate)
         while (_threadedResultQueue.TryDequeue(out string result))
         {
-            try
-            {
-                var bridge = JsonUtility.FromJson<VoskJsonBridge>(result);
-                if (bridge.text == null || string.IsNullOrEmpty(bridge.text)) continue;
-                string command = bridge.text.ToLower().Trim();
-                ProcessCommand(command);
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"Parse error: {e.Message}");
-            }
+            var data = JsonUtility.FromJson<VoskJsonBridge>(result);
+            string spoken = !string.IsNullOrEmpty(data.text) ? data.text.ToLower() : data.partial.ToLower();
+            if (string.IsNullOrEmpty(spoken)) continue;
+
+            if (spoken.Contains("left")) ExecuteCommand("left");
+            else if (spoken.Contains("right")) ExecuteCommand("right");
+            else if (spoken.Contains("jump")) ExecuteCommand("jump");
+            else if (spoken.Contains("slide")) ExecuteCommand("slide");
+            else if (spoken.Contains("swap")) TriggerSwap();
         }
 
-        // Lane movement
+        // Smooth lane movement
         float newX = Mathf.Lerp(transform.position.x, targetX, laneSwitchSpeed * Time.deltaTime);
         rb.position = new Vector3(newX, rb.position.y, rb.position.z);
 
@@ -189,113 +173,96 @@ public class VoskSpeechToTextNEW : MonoBehaviour
         if (jumpBufferTimer > 0) jumpBufferTimer -= Time.deltaTime;
     }
 
-    private void ProcessCommand(string command)
-    {
-        if (command.Contains("left")) MoveLeft();
-        else if (command.Contains("right")) MoveRight();
-        else if (command.Contains("jump")) RequestJump();
-        else if (command.Contains("slide")) RequestSlide();
-        else if (command.Contains("swap")) TriggerSwap();
-    }
-
     void FixedUpdate()
     {
         rb.linearVelocity += Vector3.down * gravity * Time.deltaTime;
 
         Vector3 vel = rb.linearVelocity;
-        vel.z = forwardSpeed;
+        if (isSliding)
+            vel.z = forwardSpeed * slideSpeedMultiplier;
+        else if (!isGrounded)
+            vel.z = forwardSpeed * airSpeedMultiplier;
+        else
+            vel.z = forwardSpeed;
         rb.linearVelocity = vel;
 
-        bool newGrounded = false;
-        if (groundCheck != null)
-            newGrounded = Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundLayer);
-        if (newGrounded)
-            coyoteTimer = coyoteTime;
+        bool newGrounded = (groundCheck != null) && Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundLayer);
+        if (newGrounded) coyoteTimer = coyoteTime;
         isGrounded = newGrounded;
 
         if ((jumpBufferTimer > 0 || jumpRequested) && coyoteTimer > 0 && !isSliding)
         {
             rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpForce, rb.linearVelocity.z);
-            jumpBufferTimer = 0f;
             jumpRequested = false;
             coyoteTimer = 0f;
-            if (animator != null)
-                animator.SetTrigger("Jump");
+            animator?.SetTrigger("Jump");
         }
 
-        if (isSliding)
+        if (coyoteTimer > 0) coyoteTimer -= Time.fixedDeltaTime;
+        if (jumpBufferTimer > 0) jumpBufferTimer -= Time.fixedDeltaTime;
+        if (isSliding) { slideTimer -= Time.fixedDeltaTime; if (slideTimer <= 0f) EndSlide(); }
+    }
+
+    private void ExecuteCommand(string cmd)
+    {
+        // Very short cooldown to prevent spam but allow fast repeated different commands
+        if (_lastCommandTime.TryGetValue(cmd, out float lastTime) && Time.time - lastTime < CommandCooldown)
+            return;
+
+        _lastCommandTime[cmd] = Time.time;
+
+        switch (cmd)
         {
-            slideTimer -= Time.deltaTime;
-            if (slideTimer <= 0f)
-                EndSlide();
+            case "left":
+                if (currentLane > 0)
+                {
+                    currentLane--;
+                    targetX = (currentLane - 1) * laneDistance;
+                    animator?.SetTrigger("Left");
+                }
+                break;
+            case "right":
+                if (currentLane < 2)
+                {
+                    currentLane++;
+                    targetX = (currentLane - 1) * laneDistance;
+                    animator?.SetTrigger("Right");
+                }
+                break;
+            case "jump":
+                if (isGrounded && !isSliding)
+                    jumpRequested = true;
+                else
+                    jumpBufferTimer = jumpBufferTime;
+                break;
+            case "slide":
+                if (!isSliding && isGrounded && !jumpRequested)
+                {
+                    isSliding = true;
+                    slideTimer = slideDuration;
+                    if (capsuleCollider) capsuleCollider.height = originalHeight - slideHeightReduction;
+                    animator?.SetTrigger("Slide");
+                }
+                else
+                    jumpBufferTimer = jumpBufferTime;
+                break;
         }
     }
 
-    void MoveLeft()
-    {
-        if (currentLane > 0)
-        {
-            currentLane--;
-            targetX = (currentLane - 1) * laneDistance;
-            if (animator != null)
-                animator.SetTrigger("Left");
-        }
-    }
-
-    void MoveRight()
-    {
-        if (currentLane < 2)
-        {
-            currentLane++;
-            targetX = (currentLane - 1) * laneDistance;
-            if (animator != null)
-                animator.SetTrigger("Right");
-        }
-    }
-
-    void RequestJump()
-    {
-        if (isGrounded && !isSliding)
-            jumpRequested = true;
-        else
-            jumpBufferTimer = jumpBufferTime;
-    }
-
-    void RequestSlide()
-    {
-        if (!isSliding && isGrounded && !jumpRequested)
-            StartSlide();
-        else
-            jumpBufferTimer = jumpBufferTime;
-    }
-
-    void StartSlide()
-    {
-        isSliding = true;
-        slideTimer = slideDuration;
-        if (capsuleCollider != null)
-        {
-            capsuleCollider.height = originalHeight - slideHeightReduction;
-            Vector3 newCenter = originalCenter;
-            newCenter.y = originalCenter.y - (slideHeightReduction * 0.5f);
-            capsuleCollider.center = newCenter;
-        }
-        if (animator != null)
-            animator.SetTrigger("Slide");
-    }
-
-    void EndSlide()
+    private void EndSlide()
     {
         isSliding = false;
-        if (capsuleCollider != null)
-        {
-            capsuleCollider.height = originalHeight;
-            capsuleCollider.center = originalCenter;
-        }
+        if (capsuleCollider) capsuleCollider.height = originalHeight;
     }
 
-    void TriggerSwap()
+    private void TriggerSwap()
     {
+        // Swap also respects cooldown (use the key "swap" in the dictionary)
+        if (_lastCommandTime.TryGetValue("swap", out float lastTime) && Time.time - lastTime < CommandCooldown)
+            return;
+        _lastCommandTime["swap"] = Time.time;
+
+        OnSwap?.Invoke();
         if (ViewSwapper.Instance != null)
             ViewSwapper.Instance.ToggleView();
     }
@@ -322,11 +289,7 @@ public class VoskSpeechToTextNEW : MonoBehaviour
     {
         int blueIdx = characterMesh.sharedMesh.GetBlendShapeIndex(blueBlendshapeName);
         int redIdx = characterMesh.sharedMesh.GetBlendShapeIndex(redBlendshapeName);
-        if (blueIdx == -1 || redIdx == -1)
-        {
-            Debug.LogWarning("Blendshape names not found");
-            yield break;
-        }
+        if (blueIdx == -1 || redIdx == -1) yield break;
 
         float startBlue = characterMesh.GetBlendShapeWeight(blueIdx);
         float startRed = characterMesh.GetBlendShapeWeight(redIdx);
@@ -338,10 +301,8 @@ public class VoskSpeechToTextNEW : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / blendshapeTransitionDuration);
-            float newBlue = Mathf.Lerp(startBlue, targetBlue, t);
-            float newRed = Mathf.Lerp(startRed, targetRed, t);
-            characterMesh.SetBlendShapeWeight(blueIdx, newBlue);
-            characterMesh.SetBlendShapeWeight(redIdx, newRed);
+            characterMesh.SetBlendShapeWeight(blueIdx, Mathf.Lerp(startBlue, targetBlue, t));
+            characterMesh.SetBlendShapeWeight(redIdx, Mathf.Lerp(startRed, targetRed, t));
             yield return null;
         }
         characterMesh.SetBlendShapeWeight(blueIdx, targetBlue);
@@ -361,11 +322,15 @@ public class VoskSpeechToTextNEW : MonoBehaviour
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
+    void OnDisable()
+    {
+        _running = false;
+    }
+
     void OnDestroy()
     {
         _running = false;
-        if (VoiceProcessor != null)
-            VoiceProcessor.StopRecording();
+        if (VoiceProcessor != null) VoiceProcessor.StopRecording();
         _recognizer?.Dispose();
         _model?.Dispose();
     }
