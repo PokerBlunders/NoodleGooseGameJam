@@ -1396,9 +1396,9 @@ GameObject:
   - component: {fileID: 6462572049178052970}
   - component: {fileID: 2899672032954850024}
   - component: {fileID: 8447508458484033787}
-  m_Layer: 13
+  m_Layer: 12
   m_Name: red
-  m_TagString: RedObject
+  m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -6171,7 +6171,7 @@ GameObject:
   - component: {fileID: 3861239390968231926}
   - component: {fileID: 3735139278881796295}
   - component: {fileID: 7661447359770370291}
-  m_Layer: 8
+  m_Layer: 12
   m_Name: top (11)
   m_TagString: RedTop
   m_Icon: {fileID: 7174288486110832750, guid: 0000000000000000d000000000000000, type: 0}
@@ -30722,9 +30722,9 @@ GameObject:
   - component: {fileID: 1362304863797773789}
   - component: {fileID: 8355114686436340972}
   - component: {fileID: 1435959602341292267}
-  m_Layer: 13
+  m_Layer: 12
   m_Name: red
-  m_TagString: RedObject
+  m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -37178,7 +37178,7 @@ GameObject:
   - component: {fileID: 4771346281688179302}
   - component: {fileID: 8140621940280348118}
   - component: {fileID: 7076521329656143898}
-  m_Layer: 8
+  m_Layer: 12
   m_Name: top (10)
   m_TagString: RedTop
   m_Icon: {fileID: 7174288486110832750, guid: 0000000000000000d000000000000000, type: 0}
