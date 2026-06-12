@@ -1749,6 +1749,7 @@ MonoBehaviour:
   audioSource: {fileID: 0}
   startSceneName: FinalLevel
   sceneLoadDelay: 0.5
+  thrillerSceneName: Thriller
 --- !u!4 &731384655
 Transform:
   m_ObjectHideFlags: 0
@@ -3573,7 +3574,7 @@ GameObject:
   - component: {fileID: 1779722609}
   - component: {fileID: 1779722608}
   m_Layer: 5
-  m_Name: Fade
+  m_Name: Fademenu
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

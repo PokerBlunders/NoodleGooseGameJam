@@ -1,13 +1,14 @@
 ﻿using System.Collections;
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class ScreenFadeManager : MonoBehaviour
 {
     public static ScreenFadeManager Instance { get; private set; }
 
-    [Header("Black Overlay (for death / scene transitions)")]
-    public CanvasGroup blackCanvasGroup;   // full‑screen black UI Image with CanvasGroup
+    [Header("Black Overlay (by name)")]
+    public string blackOverlayName = "BlackFade";   // Name of the GameObject with CanvasGroup
+    private CanvasGroup blackCanvasGroup;
 
     [Header("Black Overlay Fade Durations")]
     public float fadeInDuration = 0.5f;
@@ -15,10 +16,11 @@ public class ScreenFadeManager : MonoBehaviour
     public float fadeRespawnDelay = 0.2f;
 
     [Header("Auto Fade In (separate CanvasGroup)")]
-    public CanvasGroup autoFadeCanvasGroup;   // CanvasGroup that fades in automatically after a delay
-    public float autoFadeDelay = 2f;          // time to wait before starting fade in
-    public float autoFadeDuration = 1f;       // how long the fade takes
-    public bool startFullyTransparent = true; // start with alpha 0
+    public string autoFadeOverlayName = "AutoFade";
+    private CanvasGroup autoFadeCanvasGroup;
+    public float autoFadeDelay = 2f;
+    public float autoFadeDuration = 1f;
+    public bool startFullyTransparent = true;
 
     private bool isFading = false;
 
@@ -35,16 +37,40 @@ public class ScreenFadeManager : MonoBehaviour
         }
     }
 
-    void Start()
+    void OnEnable()
     {
-        // --- Black overlay initialisation (fade in from black) ---
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Find black overlay by name
+        GameObject blackObj = GameObject.Find(blackOverlayName);
+        if (blackObj != null)
+            blackCanvasGroup = blackObj.GetComponent<CanvasGroup>();
+        else
+            Debug.LogWarning($"ScreenFadeManager: No GameObject named '{blackOverlayName}' in scene {scene.name}");
+
+        // Find auto‑fade overlay
+        GameObject autoObj = GameObject.Find(autoFadeOverlayName);
+        if (autoObj != null)
+            autoFadeCanvasGroup = autoObj.GetComponent<CanvasGroup>();
+
+        // Fade in black overlay
         if (blackCanvasGroup != null)
         {
+            StopAllCoroutines();
+            isFading = false;
             blackCanvasGroup.alpha = 1f;
             StartCoroutine(FadeIn());
         }
 
-        // --- Auto fade in CanvasGroup setup ---
+        // Auto‑fade routine for secondary overlay
         if (autoFadeCanvasGroup != null)
         {
             if (startFullyTransparent)
@@ -57,10 +83,7 @@ public class ScreenFadeManager : MonoBehaviour
 
     private IEnumerator AutoFadeInRoutine()
     {
-        // Wait for the specified delay
         yield return new WaitForSeconds(autoFadeDelay);
-
-        // Fade in the target CanvasGroup
         float elapsed = 0f;
         while (elapsed < autoFadeDuration)
         {
@@ -83,10 +106,12 @@ public class ScreenFadeManager : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / fadeInDuration);
-            blackCanvasGroup.alpha = 1f - t;
+            if (blackCanvasGroup != null)
+                blackCanvasGroup.alpha = 1f - t;
             yield return null;
         }
-        blackCanvasGroup.alpha = 0f;
+        if (blackCanvasGroup != null)
+            blackCanvasGroup.alpha = 0f;
         isFading = false;
     }
 
@@ -99,14 +124,15 @@ public class ScreenFadeManager : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / fadeOutDuration);
-            blackCanvasGroup.alpha = t;
+            if (blackCanvasGroup != null)
+                blackCanvasGroup.alpha = t;
             yield return null;
         }
-        blackCanvasGroup.alpha = 1f;
+        if (blackCanvasGroup != null)
+            blackCanvasGroup.alpha = 1f;
         isFading = false;
     }
 
-    // Performs fade out → calls onComplete → then fade in (only for black overlay)
     public IEnumerator FadeOutAndIn(System.Action onComplete = null)
     {
         yield return StartCoroutine(FadeOut());
