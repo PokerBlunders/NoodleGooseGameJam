@@ -7,8 +7,8 @@ public class TutorialBlocker : MonoBehaviour
     public List<string> acceptedWords = new List<string>();
 
     [Header("UI / Visual Feedback")]
-    public GameObject showOnActivate;   // object to show when blocker triggers (e.g., a UI panel)
-    public GameObject hideOnComplete;   // object to hide when command succeeds (e.g., the same UI panel)
+    public GameObject showOnActivate;
+    public GameObject hideOnComplete;
 
     [Header("Behaviour")]
     public bool destroyOnComplete = true;
@@ -46,6 +46,10 @@ public class TutorialBlocker : MonoBehaviour
         Time.timeScale = 0f;
         playerMovement.isFrozen = true;
 
+        // Immediately stop footsteps when the game pauses
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.StopFootsteps();
+
         playerMovement.OnCommandExecuted += OnCommandExecuted;
     }
 
@@ -64,6 +68,7 @@ public class TutorialBlocker : MonoBehaviour
                 playerMovement.isFrozen = false;
                 playerMovement.OnCommandExecuted -= OnCommandExecuted;
 
+                // Footsteps will automatically restart when the player moves again
                 if (destroyOnComplete)
                     Destroy(gameObject);
                 return;

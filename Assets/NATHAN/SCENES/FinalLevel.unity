@@ -4196,7 +4196,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ae548075382cca4db7a5374e9de1c30, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CollectibleManager
-  collectibleTextName: CollectableCount
+  collectibleText: {fileID: 0}
   textFormat: 'Collected: {0}'
   targetCollectibles: 50
 --- !u!4 &1096136943
@@ -6503,6 +6503,65 @@ Transform:
   - {fileID: 72201751}
   m_Father: {fileID: 637482819}
   m_LocalEulerAnglesHint: {x: -5.9352827, y: -0.5448414, z: 5.321232}
+--- !u!1 &1792793770
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1792793772}
+  - component: {fileID: 1792793771}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1792793771
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1792793770}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38341fafd62ef3c4b9fc412fe3814f49, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  jumpSound: {fileID: 8300000, guid: 88ee6029939468645a86309b6a668d9d, type: 3}
+  jumpVolume: 1
+  slideSound: {fileID: 8300000, guid: 561a7ec8d7c5ee44fab5c552ac70008b, type: 3}
+  slideVolume: 1
+  swapSound: {fileID: 8300000, guid: 00c624c96b32e8849b094731e167dd6e, type: 3}
+  swapVolume: 0.6
+  leftRightSound: {fileID: 8300000, guid: 9cdb97e025c95674cb92a5ae9ea3e8f4, type: 3}
+  leftRightVolume: 1
+  deathSound: {fileID: 8300000, guid: c24e335323f2b984f9c0e87646729857, type: 3}
+  deathVolume: 1
+  collectibleSound: {fileID: 8300000, guid: c45bee76c31831e40b42bc6d018e3c03, type: 3}
+  collectibleVolume: 0.6
+  footstepSound: {fileID: 8300000, guid: b2a250766f2c6ac499a9785e3ea6ca37, type: 3}
+  footstepVolume: 0.4
+  footstepSource: {fileID: 0}
+--- !u!4 &1792793772
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1792793770}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1798897725
 GameObject:
   m_ObjectHideFlags: 0
@@ -56924,6 +56983,7 @@ SceneRoots:
   - {fileID: 1096136943}
   - {fileID: 1171393086}
   - {fileID: 854678900}
+  - {fileID: 1792793772}
   - {fileID: 865981215}
   - {fileID: 1121123224}
   - {fileID: 301270338}

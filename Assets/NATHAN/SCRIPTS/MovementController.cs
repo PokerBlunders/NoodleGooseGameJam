@@ -74,7 +74,7 @@ public class MovementController : MonoBehaviour
     private Dictionary<string, System.Action> keywordActions = new Dictionary<string, System.Action>();
     private List<string> baseCommands = new List<string>();
     public System.Action OnSwap;
-    public System.Action<string> OnCommandExecuted;   // fires when any command is recognised
+    public System.Action<string> OnCommandExecuted;
 
     private Rigidbody rb;
     private bool isGrounded;
@@ -178,6 +178,7 @@ public class MovementController : MonoBehaviour
             coyoteTimer = coyoteTime;
         isGrounded = newGrounded;
 
+        // --- Jump execution (with sound) ---
         if ((jumpBufferTimer > 0 || jumpRequested) && coyoteTimer > 0 && !isSliding)
         {
             rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpForce, rb.linearVelocity.z);
@@ -186,7 +187,16 @@ public class MovementController : MonoBehaviour
             coyoteTimer = 0f;
             if (animator != null)
                 animator.SetTrigger("Jump");
+            AudioManager.Instance?.PlayJump();
+            AudioManager.Instance?.StopFootsteps(); // stop footsteps while jumping
         }
+
+        // --- Footstep control (loop while running) ---
+        bool shouldRun = isGrounded && !isSliding && !jumpRequested && forwardSpeed > 0;
+        if (shouldRun)
+            AudioManager.Instance?.StartFootsteps();
+        else
+            AudioManager.Instance?.StopFootsteps();
 
         if (isSliding)
         {
@@ -204,6 +214,7 @@ public class MovementController : MonoBehaviour
             targetX = (currentLane - 1) * laneDistance;
             if (animator != null)
                 animator.SetTrigger("Left");
+            AudioManager.Instance?.PlayLeftRight();
         }
     }
 
@@ -215,6 +226,7 @@ public class MovementController : MonoBehaviour
             targetX = (currentLane - 1) * laneDistance;
             if (animator != null)
                 animator.SetTrigger("Right");
+            AudioManager.Instance?.PlayLeftRight();
         }
     }
 
@@ -247,6 +259,8 @@ public class MovementController : MonoBehaviour
         }
         if (animator != null)
             animator.SetTrigger("Slide");
+        AudioManager.Instance?.PlaySlide();
+        AudioManager.Instance?.StopFootsteps(); // stop footsteps when sliding
     }
 
     void EndSlide()
@@ -263,6 +277,7 @@ public class MovementController : MonoBehaviour
     {
         if (ViewSwapper.Instance != null)
             ViewSwapper.Instance.ToggleView();
+        AudioManager.Instance?.PlaySwap();
     }
 
     void OnViewSwapped(ViewSwapper.ViewMode newView)
@@ -332,6 +347,8 @@ public class MovementController : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         if (animator != null)
             animator.SetTrigger("Died");
+        AudioManager.Instance?.StopFootsteps();
+        AudioManager.Instance?.PlayDeath();
 
         StartCoroutine(DeathSequenceCoroutine());
     }
@@ -371,6 +388,7 @@ public class MovementController : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         if (animator != null)
             animator.SetTrigger("Died");
+        AudioManager.Instance?.StopFootsteps();
 
         StartCoroutine(LoadMenuCoroutine());
     }
@@ -408,10 +426,9 @@ public class MovementController : MonoBehaviour
 
         if (string.IsNullOrEmpty(bestCmd)) return;
 
-        // Fire event with the RAW spoken word (so blocker can see variants)
-        OnCommandExecuted?.Invoke(spoken);   // <-- CHANGE: use 'spoken' instead of 'bestCmd'
+        OnCommandExecuted?.Invoke(spoken);
 
-        if (isFrozen) return;   // don't execute actions when frozen
+        if (isFrozen) return;
 
         if (keywordActions.ContainsKey(bestCmd))
             keywordActions[bestCmd]();
