@@ -13,7 +13,6 @@ public class MainMenuCollectibleHandler : MonoBehaviour
             // First, check if the target is already reached
             if (CollectibleManager.Instance.TotalCollected >= CollectibleManager.Instance.targetCollectibles)
             {
-                Debug.Log("Target already reached – toggling objects immediately.");
                 ToggleObjects();
             }
             else
@@ -26,7 +25,6 @@ public class MainMenuCollectibleHandler : MonoBehaviour
 
     private void OnTargetReached()
     {
-        Debug.Log("Target reached event fired – toggling objects.");
         ToggleObjects();
     }
 

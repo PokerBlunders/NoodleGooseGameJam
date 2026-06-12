@@ -64,13 +64,17 @@ public class MovementController : MonoBehaviour
     private bool isDying = false;
 
     [Header("Menu Command")]
-    public string menuSceneName = "MainMenu";  // Name of your menu scene
+    public string menuSceneName = "MainMenu";
     private bool isLoadingMenu = false;
+
+    // --- Tutorial mode flag (set by TutorialBlocker) ---
+    public bool isFrozen = false;   // when true, movement input is ignored
 
     private KeywordRecognizer keywordRecognizer;
     private Dictionary<string, System.Action> keywordActions = new Dictionary<string, System.Action>();
     private List<string> baseCommands = new List<string>();
     public System.Action OnSwap;
+    public System.Action<string> OnCommandExecuted;   // fires when any command is recognised
 
     private Rigidbody rb;
     private bool isGrounded;
@@ -97,7 +101,7 @@ public class MovementController : MonoBehaviour
         transform.position = new Vector3(targetX, transform.position.y, transform.position.z);
 
         AddCommandVariants("left", MoveLeft,
-            "lef", "lft", "lept", "leff", "laf", "leaft", "lefet", "leftt", "levt", "lep", "lefth", "lefht", "lefty", "leftht");
+            "lef", "lft", "lept", "leff", "laf", "leaft", "lefet", "leftt", "levt", "lep", "lefth", "lefht", "leftt", "leftht");
         AddCommandVariants("right", MoveRight,
             "rite", "righ", "ryt", "reight", "raight", "rightt", "rigt", "riht", "ryte", "writ", "rait", "rith", "righht", "ryght");
         AddCommandVariants("jump", RequestJump,
@@ -107,7 +111,7 @@ public class MovementController : MonoBehaviour
         AddCommandVariants("swap", TriggerSwap,
             "swop", "swp", "sap", "swapp", "swape", "swab", "swep", "swup", "swip", "swaap", "swaph");
         AddCommandVariants("menu", LoadMenu,
-            "men", "menu", "mennu", "menue", "mnu"); // variants for "menu"
+            "men", "menu", "mennu", "menue", "mnu");
 
         baseCommands.Clear();
         baseCommands.AddRange(new[] { "left", "right", "jump", "slide", "swap", "menu" });
@@ -137,12 +141,12 @@ public class MovementController : MonoBehaviour
 
     void Update()
     {
-        if (isDying || isLoadingMenu) return; // ignore input while dying or loading menu
+        if (isDying || isLoadingMenu || isFrozen) return; // frozen = no input
 
         if (Input.GetKeyDown(KeyCode.A)) MoveLeft();
         if (Input.GetKeyDown(KeyCode.D)) MoveRight();
-        if (Input.GetKeyDown(KeyCode.Space)) RequestJump();
-        if (Input.GetKeyDown(KeyCode.LeftControl)) RequestSlide();
+        if (Input.GetKeyDown(KeyCode.W)) RequestJump();
+        if (Input.GetKeyDown(KeyCode.S)) RequestSlide();
         if (Input.GetKeyDown(KeyCode.Q)) TriggerSwap();
 
         float newX = Mathf.Lerp(transform.position.x, targetX, laneSwitchSpeed * Time.deltaTime);
@@ -154,7 +158,7 @@ public class MovementController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (isDying || isLoadingMenu) return;
+        if (isDying || isLoadingMenu || isFrozen) return;
 
         rb.linearVelocity += Vector3.down * gravity * Time.deltaTime;
 
@@ -347,8 +351,6 @@ public class MovementController : MonoBehaviour
             jumpRequested = false;
             currentLane = 1;
             targetX = (currentLane - 1) * laneDistance;
-            if (animator != null)
-                animator.SetTrigger("Respawn");
 
             isDying = false;
             StartCoroutine(ScreenFadeManager.Instance.FadeIn());
@@ -366,19 +368,16 @@ public class MovementController : MonoBehaviour
         if (isLoadingMenu || isDying) return;
         isLoadingMenu = true;
 
-        // Optionally stop input immediately
         rb.linearVelocity = Vector3.zero;
         if (animator != null)
-            animator.SetTrigger("Died"); // optional: play a quick death/exit animation
+            animator.SetTrigger("Died");
 
         StartCoroutine(LoadMenuCoroutine());
     }
 
     private IEnumerator LoadMenuCoroutine()
     {
-        // Fade out using ScreenFadeManager
         yield return StartCoroutine(ScreenFadeManager.Instance.FadeOut());
-        // Small extra delay (optional)
         yield return new WaitForSeconds(0.2f);
         SceneManager.LoadScene(menuSceneName);
     }
@@ -388,25 +387,33 @@ public class MovementController : MonoBehaviour
     {
         string spoken = args.text.ToLower();
 
+        string bestCmd = null;
         if (keywordActions.ContainsKey(spoken))
         {
-            keywordActions[spoken]();
-            return;
+            bestCmd = spoken;
         }
-
-        int bestDist = int.MaxValue;
-        string bestCmd = null;
-        foreach (string cmd in baseCommands)
+        else
         {
-            int dist = LevenshteinDistance(spoken, cmd);
-            if (dist < bestDist && dist <= fuzzyThreshold)
+            int bestDist = int.MaxValue;
+            foreach (string cmd in baseCommands)
             {
-                bestDist = dist;
-                bestCmd = cmd;
+                int dist = LevenshteinDistance(spoken, cmd);
+                if (dist < bestDist && dist <= fuzzyThreshold)
+                {
+                    bestDist = dist;
+                    bestCmd = cmd;
+                }
             }
         }
 
-        if (bestCmd != null && keywordActions.ContainsKey(bestCmd))
+        if (string.IsNullOrEmpty(bestCmd)) return;
+
+        // Fire event with the RAW spoken word (so blocker can see variants)
+        OnCommandExecuted?.Invoke(spoken);   // <-- CHANGE: use 'spoken' instead of 'bestCmd'
+
+        if (isFrozen) return;   // don't execute actions when frozen
+
+        if (keywordActions.ContainsKey(bestCmd))
             keywordActions[bestCmd]();
     }
 

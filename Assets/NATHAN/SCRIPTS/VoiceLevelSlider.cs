@@ -26,6 +26,8 @@ public class VoiceLevelSlider : MonoBehaviour
 
     [Header("Fade to Black")]
     public CanvasGroup blackFadeCanvasGroup;
+    public CanvasGroup fadeOutOnStartCanvasGroup;   // fades out during initial fade‑in (1→0)
+    public float fadeInDelay = 0f;
     public float fadeInDuration = 0.5f;
     public float fadeToBlackDuration = 0.5f;
 
@@ -42,7 +44,6 @@ public class VoiceLevelSlider : MonoBehaviour
     public string startSceneName = "Game";
     public float sceneLoadDelay = 0.5f;
 
-    // New: Thriller command
     public string thrillerSceneName = "Thriller";
     private bool isProcessingThriller = false;
 
@@ -64,12 +65,21 @@ public class VoiceLevelSlider : MonoBehaviour
         if (blackFadeCanvasGroup != null)
         {
             blackFadeCanvasGroup.alpha = 1f;
-            StartCoroutine(FadeIn());
+            if (fadeOutOnStartCanvasGroup != null)
+                fadeOutOnStartCanvasGroup.alpha = 1f;
+            StartCoroutine(DelayedFadeIn());
         }
         else
         {
             InitializeMicrophoneAndRecognizer();
         }
+    }
+
+    private IEnumerator DelayedFadeIn()
+    {
+        if (fadeInDelay > 0f)
+            yield return new WaitForSeconds(fadeInDelay);
+        yield return StartCoroutine(FadeIn());
     }
 
     private IEnumerator FadeIn()
@@ -79,10 +89,15 @@ public class VoiceLevelSlider : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / fadeInDuration);
-            blackFadeCanvasGroup.alpha = 1f - t;
+            float blackAlpha = 1f - t;
+            blackFadeCanvasGroup.alpha = blackAlpha;
+            if (fadeOutOnStartCanvasGroup != null)
+                fadeOutOnStartCanvasGroup.alpha = blackAlpha;
             yield return null;
         }
         blackFadeCanvasGroup.alpha = 0f;
+        if (fadeOutOnStartCanvasGroup != null)
+            fadeOutOnStartCanvasGroup.alpha = 0f;
         InitializeMicrophoneAndRecognizer();
     }
 
@@ -90,7 +105,6 @@ public class VoiceLevelSlider : MonoBehaviour
     {
         if (Microphone.devices.Length == 0)
         {
-            Debug.LogError("No microphone found!");
             enabled = false;
             return;
         }
@@ -99,7 +113,6 @@ public class VoiceLevelSlider : MonoBehaviour
         microphoneClip = Microphone.Start(microphoneDevice, true, 1, sampleRate);
         while (Microphone.GetPosition(microphoneDevice) <= 0) { }
 
-        // Add "thriller" to keywords
         string[] keywords = { "speak", "start", "thriller" };
         keywordRecognizer = new KeywordRecognizer(keywords, ConfidenceLevel.Medium);
         keywordRecognizer.OnPhraseRecognized += OnPhraseRecognized;
@@ -107,8 +120,6 @@ public class VoiceLevelSlider : MonoBehaviour
 
         if (audioSource == null && (speakSounds.Count > 0 || startSounds.Count > 0))
             audioSource = gameObject.AddComponent<AudioSource>();
-
-        Debug.Log("Ready for voice commands.");
     }
 
     void Update()
@@ -167,7 +178,6 @@ public class VoiceLevelSlider : MonoBehaviour
 
     private IEnumerator ThrillerSequence()
     {
-        // Simple fade to black then load scene
         if (blackFadeCanvasGroup != null)
         {
             float elapsed = 0f;
@@ -180,7 +190,6 @@ public class VoiceLevelSlider : MonoBehaviour
             }
             blackFadeCanvasGroup.alpha = 1f;
         }
-
         yield return new WaitForSeconds(sceneLoadDelay);
         SceneManager.LoadScene(thrillerSceneName);
     }
@@ -189,7 +198,6 @@ public class VoiceLevelSlider : MonoBehaviour
     {
         isProcessingStart = true;
 
-        // --- Fade out UI and move object ---
         if (uiCanvasGroup != null || uiMoveObject != null)
         {
             float elapsed = 0f;
@@ -231,7 +239,7 @@ public class VoiceLevelSlider : MonoBehaviour
             }
         }
 
-        // 2. First blendshape to 0
+        // First blendshape to 0
         if (characterMesh != null && !string.IsNullOrEmpty(firstBlendshapeName))
         {
             int idx = characterMesh.sharedMesh.GetBlendShapeIndex(firstBlendshapeName);
@@ -252,7 +260,7 @@ public class VoiceLevelSlider : MonoBehaviour
             }
         }
 
-        // 3. Second blendshape to 1
+        // Second blendshape to 1
         if (characterMesh != null && !string.IsNullOrEmpty(secondBlendshapeName))
         {
             int idx = characterMesh.sharedMesh.GetBlendShapeIndex(secondBlendshapeName);
@@ -273,7 +281,7 @@ public class VoiceLevelSlider : MonoBehaviour
             }
         }
 
-        // 4. Fade to black
+        // Fade to black
         if (blackFadeCanvasGroup != null)
         {
             float elapsed = 0f;
@@ -287,7 +295,6 @@ public class VoiceLevelSlider : MonoBehaviour
             blackFadeCanvasGroup.alpha = 1f;
         }
 
-        // 5. Extra delay then load scene
         yield return new WaitForSeconds(sceneLoadDelay);
         SceneManager.LoadScene(startSceneName);
     }

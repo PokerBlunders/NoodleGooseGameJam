@@ -54,7 +54,7 @@ public class ScreenFadeManager : MonoBehaviour
         if (blackObj != null)
             blackCanvasGroup = blackObj.GetComponent<CanvasGroup>();
         else
-            Debug.LogWarning($"ScreenFadeManager: No GameObject named '{blackOverlayName}' in scene {scene.name}");
+            Debug.LogWarning($".");
 
         // Find auto‑fade overlay
         GameObject autoObj = GameObject.Find(autoFadeOverlayName);

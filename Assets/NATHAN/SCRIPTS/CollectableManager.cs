@@ -30,7 +30,7 @@ public class CollectibleManager : MonoBehaviour
             {
                 targetReached = true;
                 OnTargetReached?.Invoke();
-                Debug.Log("Target reached! " + totalCollected + " / " + targetCollectibles);
+                Debug.Log(".");
             }
         }
     }
@@ -66,7 +66,7 @@ public class CollectibleManager : MonoBehaviour
         {
             collectibleText = textObj.GetComponent<TextMeshProUGUI>();
             if (collectibleText == null)
-                Debug.LogWarning($"CollectibleManager: GameObject '{collectibleTextName}' found but has no TextMeshProUGUI component.");
+                Debug.LogWarning($".");
         }
         else
         {

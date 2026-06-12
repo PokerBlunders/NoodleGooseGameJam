@@ -12,63 +12,50 @@ public class LevelSpawner : MonoBehaviour
     public GameObject[] rewardPrefabs;  // R
 
     [Header("Level Sequence")]
-    [Tooltip("String of letters (S, E, M, R) defining level order. Example: 'SEEMRSEEMRSEEMRSEEMR' (19 letters)")]
+    [Tooltip("String of letters (S, E, M, R) defining level order.")]
     public string levelSequence = "SEEMRSEEMRSEEMRSEEMR";
     private int currentLevelIndex = 0;
-    private bool allLevelsSpawned = false;
 
     [Header("Spawn Settings")]
     public Transform player;
-    public float spawnTriggerDistance = 20f;   // how close player must be to last chunk to spawn next (was spawnDistanceAhead)
+    public float spawnTriggerDistance = 20f;
     public int maxActiveChunks = 3;
-    public float chunkLength = 15f;            // length of each chunk in Z direction
-    public float initialSpawnOffset = 20f;     // how far ahead of player to place the first chunk
+    public float chunkLength = 15f;
+    public float initialSpawnOffset = 20f;
+
+    [Header("Looping")]
+    public bool loopSequence = true;   // if true, repeats the sequence forever
 
     [Header("Debug")]
     public bool logLevelChanges = true;
 
     private List<GameObject> activeChunks = new List<GameObject>();
     private float nextSpawnZ;
-    private bool gameWon = false;
 
     void Start()
     {
         if (player == null)
         {
-            Debug.LogError("LevelSpawner: Player Transform not assigned!");
+            Debug.LogError(".");
             return;
         }
 
-        // Start placing first chunk this far ahead of the player
         nextSpawnZ = player.position.z + initialSpawnOffset;
-
-        // Pre‑spawn two chunks so the player has something to run on
         SpawnNextChunk();
         SpawnNextChunk();
     }
 
     void Update()
     {
-        if (gameWon) return;
-
-        // Remove chunks that are far behind the player
         CleanupPassedChunks();
 
-        // Spawn new chunks if we haven't finished the sequence and we are below the active limit
-        if (!allLevelsSpawned && activeChunks.Count < maxActiveChunks)
+        if (activeChunks.Count < maxActiveChunks)
         {
             float lastChunkEndZ = GetLastChunkEndZ();
-            // Spawn when the player gets within trigger distance of the end of the last chunk
             if (lastChunkEndZ - player.position.z < spawnTriggerDistance)
             {
                 SpawnNextChunk();
             }
-        }
-
-        // If all levels are spawned and no chunks remain active, win
-        if (allLevelsSpawned && activeChunks.Count == 0 && !gameWon)
-        {
-            WinGame();
         }
     }
 
@@ -76,8 +63,17 @@ public class LevelSpawner : MonoBehaviour
     {
         if (currentLevelIndex >= levelSequence.Length)
         {
-            allLevelsSpawned = true;
-            return;
+            if (loopSequence)
+            {
+                currentLevelIndex = 0;
+                if (logLevelChanges)
+                    Debug.Log(".");
+            }
+            else
+            {
+                // No more levels and no looping – nothing to spawn
+                return;
+            }
         }
 
         char letter = levelSequence[currentLevelIndex];
@@ -85,7 +81,7 @@ public class LevelSpawner : MonoBehaviour
 
         if (prefabToSpawn == null)
         {
-            Debug.LogError($"No prefab for letter '{letter}' at index {currentLevelIndex}");
+            Debug.LogError($".");
             return;
         }
 
@@ -94,14 +90,10 @@ public class LevelSpawner : MonoBehaviour
         activeChunks.Add(newChunk);
 
         if (logLevelChanges)
-            Debug.Log($"Spawned level {currentLevelIndex}: '{letter}' at Z = {nextSpawnZ}");
+            Debug.Log($".");
 
-        // Move the spawn position forward by the chunk length for the next piece
         nextSpawnZ += chunkLength;
         currentLevelIndex++;
-
-        if (currentLevelIndex >= levelSequence.Length)
-            allLevelsSpawned = true;
     }
 
     GameObject GetPrefabByLetter(char letter)
@@ -113,7 +105,6 @@ public class LevelSpawner : MonoBehaviour
             case 'M': return GetRandomPrefab(mediumPrefabs);
             case 'R': return GetRandomPrefab(rewardPrefabs);
             default:
-                Debug.LogWarning($"Unknown letter '{letter}'");
                 return null;
         }
     }
@@ -150,20 +141,11 @@ public class LevelSpawner : MonoBehaviour
             }
 
             float chunkEndZ = activeChunks[i].transform.position.z + chunkLength;
-            // Destroy if the player is more than 5 units past the chunk's end
             if (chunkEndZ < player.position.z - 5f)
             {
                 Destroy(activeChunks[i]);
                 activeChunks.RemoveAt(i);
             }
         }
-    }
-
-    void WinGame()
-    {
-        gameWon = true;
-        Debug.Log("🎉 You completed all levels! 🎉");
-        // Add your win UI / scene change / pause here
-        // Example: FindObjectOfType<GameManager>().ShowWinScreen();
     }
 }
